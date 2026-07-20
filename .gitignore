@@ -1,0 +1,12 @@
+node_modules/
+dist/
+build/
+.next/
+out/
+*.log
+.DS_Store
+.env
+.env.local
+.vite/
+# Registry auth tokens for the private @gocharting/chart-sdk package — never commit
+.npmrc

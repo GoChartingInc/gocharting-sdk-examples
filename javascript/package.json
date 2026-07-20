@@ -1,0 +1,17 @@
+{
+	"name": "gocharting-sdk-example-javascript",
+	"private": true,
+	"version": "1.0.0",
+	"type": "module",
+	"scripts": {
+		"dev": "vite",
+		"build": "vite build",
+		"preview": "vite preview"
+	},
+	"dependencies": {
+		"@gocharting/chart-sdk": "^1.0.69"
+	},
+	"devDependencies": {
+		"vite": "^6.0.0"
+	}
+}
