@@ -1,0 +1,18 @@
+{
+	"name": "gocharting-sdk-example-nuxtjs3",
+	"private": true,
+	"version": "1.0.0",
+	"type": "module",
+	"scripts": {
+		"dev": "nuxt dev",
+		"build": "nuxt build",
+		"generate": "nuxt generate",
+		"preview": "nuxt preview",
+		"postinstall": "nuxt prepare"
+	},
+	"dependencies": {
+		"@gocharting/chart-sdk": "^1.0.69",
+		"nuxt": "^3.14.0",
+		"vue": "^3.5.0"
+	}
+}

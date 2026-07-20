@@ -12,10 +12,17 @@ Every example ships with a synthetic **offline datafeed** and a **demo license k
 | --- | --- | --- | --- | --- |
 | [`javascript`](./javascript) | None (vanilla) | Vite | ✅ | Smallest possible integration — one `createChart` call |
 | [`react-typescript`](./react-typescript) | React + TypeScript | Vite | ✅ | Typed `createChart`, mount/unmount lifecycle |
+| [`react-javascript`](./react-javascript) | React (JavaScript) | Vite | ✅ | Same integration without TypeScript |
 | [`nextjs`](./nextjs) | Next.js (App Router) | Next | ✅ | Client-only dynamic import (`ssr: false`) |
 | [`vue`](./vue) | Vue 3 | Vite | ✅ | Composition API, template ref lifecycle |
+| [`nuxtjs3`](./nuxtjs3) | Nuxt 3 | Nuxt | ✅ | Client-only component (`.client.vue`) |
+| [`sveltekit`](./sveltekit) | SvelteKit | Vite | ✅ | `ssr: false` route + `onMount` |
+| [`solidjs-typescript`](./solidjs-typescript) | SolidJS + TypeScript | Vite | ✅ | `onMount` / `onCleanup` lifecycle |
 | [`angular`](./angular) | Angular | Angular CLI | ✅ | Standalone component, lifecycle hooks |
 | `datafeed-websocket` | — | Vite | ✅ | _planned_ — real-time bars over WebSocket |
+
+Native/backend targets (Android WebView, iOS WKWebView, React Native, Rails) follow the same
+"host a page that embeds the SDK" pattern but aren't included yet — see [Roadmap](#roadmap).
 
 ## Getting the SDK
 
@@ -76,6 +83,20 @@ Optionally add `subscribeTicks` / `unsubscribeTicks` for real-time updates and `
 The bundled `mock-datafeed` generates a synthetic random walk so examples run offline. To use real data, replace it with a datafeed that fetches from your provider. The shape is identical — implement `getBars` and `resolveSymbol` against your API instead of the generator.
 
 For a full production datafeed (Bybit REST + WebSocket, symbol search, marks), see the reference implementation in the GoCharting SDK demo app.
+
+## Roadmap
+
+Planned examples, mirroring the breadth of TradingView's example set:
+
+- **`datafeed-websocket`** — a real-time datafeed over WebSocket (the current examples all
+  use the bundled synthetic feed).
+- **Native WebView hosts** — `android` (WebView), `ios-swift` (WKWebView), and `react-native`.
+  These embed a small HTML page that loads the SDK; the SDK ships `isNativeApp` + a
+  bidirectional bridge for host-owned chrome.
+- **Backend-rendered** — `ruby-on-rails` (and similar) serving the host page.
+
+The native and backend targets can't be verified in a headless web environment, so they'll
+land as reviewed templates rather than browser-tested examples.
 
 ## License
 
