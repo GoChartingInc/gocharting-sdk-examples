@@ -4,7 +4,7 @@ Minimal, self-contained examples of integrating the [GoCharting SDK](https://www
 
 > **The GoCharting SDK is a licensed product**, distributed as a compiled package — not open source. These examples are public integration *templates*; running them requires access to the `@gocharting/chart-sdk` package and a license key. See [Getting the SDK](#getting-the-sdk).
 
-Every example ships with a synthetic **offline datafeed** and a **demo license key**, so once you have package access they run with no backend and no network. Swap the datafeed for your own once you've seen it work — see [Connecting real data](#connecting-real-data).
+Most examples ship with a synthetic **offline datafeed** and a **demo license key**, so once you have package access they run with no backend and no network. The [`datafeed-websocket`](./datafeed-websocket) example is the exception — it streams **real** market data. Swap the datafeed for your own once you've seen it work — see [Connecting real data](#connecting-real-data).
 
 ## Examples
 
@@ -19,7 +19,7 @@ Every example ships with a synthetic **offline datafeed** and a **demo license k
 | [`sveltekit`](./sveltekit) | SvelteKit | Vite | ✅ | `ssr: false` route + `onMount` |
 | [`solidjs-typescript`](./solidjs-typescript) | SolidJS + TypeScript | Vite | ✅ | `onMount` / `onCleanup` lifecycle |
 | [`angular`](./angular) | Angular | Angular CLI | ✅ | Standalone component, lifecycle hooks |
-| `datafeed-websocket` | — | Vite | ✅ | _planned_ — real-time bars over WebSocket |
+| [`datafeed-websocket`](./datafeed-websocket) | — | Vite | 🌐 real | Live BYBIT data over the GoCharting demo WebSocket |
 
 Native/backend targets (Android WebView, iOS WKWebView, React Native, Rails) follow the same
 "host a page that embeds the SDK" pattern but aren't included yet — see [Roadmap](#roadmap).
@@ -82,14 +82,12 @@ Optionally add `subscribeTicks` / `unsubscribeTicks` for real-time updates and `
 
 The bundled `mock-datafeed` generates a synthetic random walk so examples run offline. To use real data, replace it with a datafeed that fetches from your provider. The shape is identical — implement `getBars` and `resolveSymbol` against your API instead of the generator.
 
-For a full production datafeed (Bybit REST + WebSocket, symbol search, marks), see the reference implementation in the GoCharting SDK demo app.
+For a working real-data feed, see [`datafeed-websocket`](./datafeed-websocket) — it implements `getBars`, `resolveSymbol`, `subscribeTicks`/`unsubscribeTicks`, and `searchSymbols` against the GoCharting demo WebSocket, and its `ws-datafeed.ts` drops into any framework example.
 
 ## Roadmap
 
 Planned examples, mirroring the breadth of TradingView's example set:
 
-- **`datafeed-websocket`** — a real-time datafeed over WebSocket (the current examples all
-  use the bundled synthetic feed).
 - **Native WebView hosts** — `android` (WebView), `ios-swift` (WKWebView), and `react-native`.
   These embed a small HTML page that loads the SDK; the SDK ships `isNativeApp` + a
   bidirectional bridge for host-owned chrome.
