@@ -42,6 +42,18 @@ chrome. Native code drives the chart back via `window.chart`.
 See the [Mobile Integration guide](https://gocharting.com/sdk/docs/guides/mobile-integration)
 for the full event surface.
 
+> **Known issue — the demo feed rejects `file://` origins.** Native WebViews load
+> `chart.html` from the app bundle/assets, which is a `file://` origin, and
+> `wss://gocharting.com/sdk/ws` refuses the handshake (close code 1006) — so the chart
+> renders but shows *"Request timed out"* instead of data. This is a **server-side origin
+> allowlist, not a WebView restriction**: in the same WKWebView, from the same `file://`
+> page, a public echo WebSocket connects fine, and serving the identical `chart.html` over
+> `http://localhost` streams live bars. Until the demo feed accepts it, either point these
+> examples at your own feed, or give the page an http(s) origin — on Android via
+> [`WebViewAssetLoader`](https://developer.android.com/reference/androidx/webkit/WebViewAssetLoader)
+> (`https://appassets.androidplatform.net/`), on iOS via a `WKURLSchemeHandler` or a local
+> server. Your own datafeed is unaffected unless it does the same origin check.
+
 ### Server-rendered
 
 The server just renders the container and passes config into the page; the SDK still runs
@@ -125,7 +137,12 @@ Every example here has been built and/or run, with one exception:
 | `react-native` | `tsc` clean + `react-native bundle` (chart.html ships as an asset) |
 | `android` | `gradle assembleDebug` → APK with the Kotlin bridge compiled and assets packaged |
 | `flutter` | `flutter analyze` clean + `flutter build apk` with assets bundled |
-| `ios-swift` | `swiftc -parse` clean, and the `WKScriptMessageHandler` bridge + JS escaping compiled and run against the real WebKit framework. **The UIKit view controller is unbuilt** — that needs Xcode's iOS SDK |
+| `ios-swift` | Built with `xcodebuild -sdk iphonesimulator` and **run in the iOS 26.5 simulator** — live BTCUSDT candles rendered. See the origin caveat below |
+
+> The four native examples were verified **built and launched**. Only `ios-swift` was run
+> against live data, and only after working around the `file://` origin issue above — with
+> the page served over http, it streams; from the bundle, it renders but times out. Expect
+> the same on Android, Flutter, and React Native, since they load the page the same way.
 
 The native examples ship the integration code plus the `chart.html` they load; each README
 starts with the one-time scaffold step for that platform (`flutter create .`,
