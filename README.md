@@ -66,9 +66,8 @@ in the browser.
 
 ## Getting the SDK
 
-The `@gocharting/chart-sdk` package is not on the public npm registry. Like TradingView's
-Advanced Charts, it's distributed to licensed users only. To run these examples you need
-two things:
+The `@gocharting/chart-sdk` package is not on the public npm registry — it's distributed to
+licensed users only. To run these examples you need two things:
 
 1. **Package access** — request a license at [gocharting.com](https://www.gocharting.com).
    You'll receive access to the private `@gocharting/chart-sdk` package and instructions to
