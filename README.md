@@ -125,7 +125,7 @@ Every example here has been built and/or run, with one exception:
 | `react-native` | `tsc` clean + `react-native bundle` (chart.html ships as an asset) |
 | `android` | `gradle assembleDebug` → APK with the Kotlin bridge compiled and assets packaged |
 | `flutter` | `flutter analyze` clean + `flutter build apk` with assets bundled |
-| `ios-swift` | **Source parses (`swiftc -parse`) only** — a full build needs Xcode |
+| `ios-swift` | `swiftc -parse` clean, and the `WKScriptMessageHandler` bridge + JS escaping compiled and run against the real WebKit framework. **The UIKit view controller is unbuilt** — that needs Xcode's iOS SDK |
 
 The native examples ship the integration code plus the `chart.html` they load; each README
 starts with the one-time scaffold step for that platform (`flutter create .`,
