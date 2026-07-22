@@ -57,9 +57,28 @@ for the full event surface.
 > The echo socket connects from every origin, so neither the WebView nor the network is at
 > fault. Note the third row: **an http(s) origin is not sufficient** — anything other than
 > `localhost` is refused, so `WebViewAssetLoader` (`https://appassets.androidplatform.net/`)
-> and a custom `WKURLSchemeHandler` will *not* work around this. Until the demo feed
-> widens its allowlist, point these examples at your own feed. Your own datafeed is
-> unaffected unless it does the same origin check.
+> and a custom `WKURLSchemeHandler` will *not* help. Your own datafeed is unaffected unless
+> it does the same origin check.
+>
+> **To see the native examples stream live data**, serve `chart.html` from a local server
+> and point the WebView at `localhost` — all four were verified this way:
+>
+> ```bash
+> # from the example's asset folder (the one holding chart.html + index.umd.js)
+> python3 -m http.server 8899
+> ```
+>
+> Then load `http://localhost:8899/chart.html` instead of the bundled asset. The iOS
+> simulator reaches the host's `localhost` directly. The **Android emulator needs a port
+> mapping**, because `10.0.2.2` is not an allowlisted origin:
+>
+> ```bash
+> adb reverse tcp:8899 tcp:8899   # device's localhost:8899 -> your machine's 8899
+> ```
+>
+> Android also needs `android:usesCleartextTraffic="true"` for plain http, and iOS needs
+> `NSAppTransportSecurity` → `NSAllowsLocalNetworking`. Both are development-only settings —
+> drop them once you point at your own https feed.
 
 ### Server-rendered
 
@@ -141,7 +160,7 @@ Every example here has been built and/or run, with one exception:
 | `django` | `manage.py runserver` + chart rendered |
 | `ruby-on-rails` | Files dropped into a real `rails new` app, served, chart rendered |
 | `react-native` | **Run in the iOS 26.5 simulator** — live candles; bridge confirmed by chart events arriving in `onMessage` |
-| `android` | **Run on an Android 15 emulator** (`gradle assembleDebug` → APK) — SDK loads and the mobile canvas renders |
+| `android` | **Run on an Android 15 emulator** (`gradle assembleDebug` → APK) — live BTCUSDT candles via `adb reverse` |
 | `flutter` | **Run in the iOS 26.5 simulator** — live candles; bridge confirmed by chart events arriving on the `Flutter` JS channel |
 | `ios-swift` | Built with `xcodebuild -sdk iphonesimulator` and **run in the iOS 26.5 simulator** — live BTCUSDT candles rendered |
 
