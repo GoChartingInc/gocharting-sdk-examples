@@ -42,17 +42,24 @@ chrome. Native code drives the chart back via `window.chart`.
 See the [Mobile Integration guide](https://gocharting.com/sdk/docs/guides/mobile-integration)
 for the full event surface.
 
-> **Known issue — the demo feed rejects `file://` origins.** Native WebViews load
-> `chart.html` from the app bundle/assets, which is a `file://` origin, and
-> `wss://gocharting.com/sdk/ws` refuses the handshake (close code 1006) — so the chart
-> renders but shows *"Request timed out"* instead of data. This is a **server-side origin
-> allowlist, not a WebView restriction**: in the same WKWebView, from the same `file://`
-> page, a public echo WebSocket connects fine, and serving the identical `chart.html` over
-> `http://localhost` streams live bars. Until the demo feed accepts it, either point these
-> examples at your own feed, or give the page an http(s) origin — on Android via
-> [`WebViewAssetLoader`](https://developer.android.com/reference/androidx/webkit/WebViewAssetLoader)
-> (`https://appassets.androidplatform.net/`), on iOS via a `WKURLSchemeHandler` or a local
-> server. Your own datafeed is unaffected unless it does the same origin check.
+> **Known issue — the demo feed only accepts `localhost` origins.** Native WebViews load
+> `chart.html` from the app bundle/assets, and `wss://gocharting.com/sdk/ws` refuses the
+> handshake (close code 1006) — the chart renders but shows *"Request timed out"* instead
+> of data. This is a **server-side origin allowlist, not a WebView restriction.** Measured
+> by opening two sockets from the same page, in the real WebView on each platform:
+>
+> | Page origin | Public echo server | `wss://gocharting.com/sdk/ws` |
+> | --- | --- | --- |
+> | `file://` (iOS `WKWebView`) | OPEN | **ERROR** |
+> | `http://localhost` | OPEN | OPEN |
+> | `http://10.0.2.2` (Android `WebView`) | OPEN | **ERROR** |
+>
+> The echo socket connects from every origin, so neither the WebView nor the network is at
+> fault. Note the third row: **an http(s) origin is not sufficient** — anything other than
+> `localhost` is refused, so `WebViewAssetLoader` (`https://appassets.androidplatform.net/`)
+> and a custom `WKURLSchemeHandler` will *not* work around this. Until the demo feed
+> widens its allowlist, point these examples at your own feed. Your own datafeed is
+> unaffected unless it does the same origin check.
 
 ### Server-rendered
 
@@ -133,15 +140,16 @@ Every example here has been built and/or run, with one exception:
 | `chart.html` (the WebView payload) | Rendered on a mobile viewport — `isNativeApp` canvas, and confirmed the SDK posts to a stubbed native bridge |
 | `django` | `manage.py runserver` + chart rendered |
 | `ruby-on-rails` | Files dropped into a real `rails new` app, served, chart rendered |
-| `react-native` | `tsc` clean + `react-native bundle` (chart.html ships as an asset) |
-| `android` | `gradle assembleDebug` → APK with the Kotlin bridge compiled and assets packaged |
-| `flutter` | `flutter analyze` clean + `flutter build apk` with assets bundled |
-| `ios-swift` | Built with `xcodebuild -sdk iphonesimulator` and **run in the iOS 26.5 simulator** — live BTCUSDT candles rendered. See the origin caveat below |
+| `react-native` | **Run in the iOS 26.5 simulator** — live candles; bridge confirmed by chart events arriving in `onMessage` |
+| `android` | **Run on an Android 15 emulator** (`gradle assembleDebug` → APK) — SDK loads and the mobile canvas renders |
+| `flutter` | **Run in the iOS 26.5 simulator** — live candles; bridge confirmed by chart events arriving on the `Flutter` JS channel |
+| `ios-swift` | Built with `xcodebuild -sdk iphonesimulator` and **run in the iOS 26.5 simulator** — live BTCUSDT candles rendered |
 
-> The four native examples were verified **built and launched**. Only `ios-swift` was run
-> against live data, and only after working around the `file://` origin issue above — with
-> the page served over http, it streams; from the bundle, it renders but times out. Expect
-> the same on Android, Flutter, and React Native, since they load the page the same way.
+> All four native examples were built and **run on a real emulator/simulator**. Live data
+> required serving `chart.html` from `localhost` because of the origin allowlist above;
+> loaded from the app bundle they render but time out. Android was run from
+> `http://10.0.2.2` (the emulator's host alias) and still timed out — which is how the
+> allowlist was found to be narrower than `file://` alone.
 
 The native examples ship the integration code plus the `chart.html` they load; each README
 starts with the one-time scaffold step for that platform (`flutter create .`,
