@@ -112,16 +112,25 @@ Every example uses the same [`ws-datafeed`](./datafeed-websocket/src/ws-datafeed
 
 To use your own data, replace `ws-datafeed` with a datafeed that talks to your provider — the interface is identical. The demo feed is allowlisted to two symbols (`BYBIT:FUTURE:BTCUSDT`, `BYBIT:FUTURE:ETHUSDT`) and rate-limited to ~5 connections per IP.
 
-## A note on the native examples
+## Verification status
 
-The web and Django examples are browser-tested. The four native hosts ship the integration
-code plus the `chart.html` they load — building them needs the platform toolchain
-(Android Studio, Xcode, Flutter SDK), so each README starts with the one-time scaffold
-step for that platform. The `chart.html` itself **is** verified: it renders the
-`isNativeApp` canvas with live data and posts to the native bridge.
+Every example here has been built and/or run, with one exception:
 
-The Rails example ships as controller + view + route to drop into a `rails new` app,
-rather than a full generated application.
+| Example | Verified by |
+| --- | --- |
+| All 10 web examples | Rendered in a browser against the live feed |
+| `chart.html` (the WebView payload) | Rendered on a mobile viewport — `isNativeApp` canvas, and confirmed the SDK posts to a stubbed native bridge |
+| `django` | `manage.py runserver` + chart rendered |
+| `ruby-on-rails` | Files dropped into a real `rails new` app, served, chart rendered |
+| `react-native` | `tsc` clean + `react-native bundle` (chart.html ships as an asset) |
+| `android` | `gradle assembleDebug` → APK with the Kotlin bridge compiled and assets packaged |
+| `flutter` | `flutter analyze` clean + `flutter build apk` with assets bundled |
+| `ios-swift` | **Source parses (`swiftc -parse`) only** — a full build needs Xcode |
+
+The native examples ship the integration code plus the `chart.html` they load; each README
+starts with the one-time scaffold step for that platform (`flutter create .`,
+`npx @react-native-community/cli init`, opening in Android Studio / Xcode). The Rails
+example ships as controller + view + route to drop into a `rails new` app.
 
 ## License
 

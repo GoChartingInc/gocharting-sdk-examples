@@ -10,8 +10,13 @@ import { WebView, type WebViewMessageEvent } from "react-native-webview";
  * events through onMessage. `window.ReactNativeWebView` is injected by the
  * WebView automatically, which is what the SDK posts to.
  */
+// react-native-webview declares `class WebView<P = undefined>` extending
+// `Component<WebViewProps & P>`. With the default generic that intersects to
+// `never`, so every prop is rejected — pass `object` explicitly instead.
+type ChartWebView = WebView<object>;
+
 export default function App() {
-	const webRef = useRef<WebView>(null);
+	const webRef = useRef<ChartWebView>(null);
 
 	const onMessage = (event: WebViewMessageEvent) => {
 		const msg = JSON.parse(event.nativeEvent.data);
@@ -48,7 +53,7 @@ export default function App() {
 
 	return (
 		<SafeAreaView style={styles.container}>
-			<WebView
+			<WebView<object>
 				ref={webRef}
 				source={require("./assets/chart.html")}
 				originWhitelist={["*"]}

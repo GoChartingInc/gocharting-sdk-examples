@@ -18,3 +18,8 @@ index.umd.js
 .venv/
 __pycache__/
 *.pyc
+
+# Android (machine-specific SDK path / build output)
+local.properties
+.gradle/
+build/

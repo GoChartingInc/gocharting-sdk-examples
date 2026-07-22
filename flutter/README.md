@@ -17,6 +17,10 @@ network access.
    flutter pub get
    ```
 
+   > `flutter create` also scaffolds `test/widget_test.dart` referencing a `MyApp`
+   > class. This example's root widget is `GoChartingApp`, so either update that
+   > test or delete it — it isn't part of the build.
+
 2. Copy the SDK bundle next to `chart.html`:
 
    ```bash
