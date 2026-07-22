@@ -2,7 +2,7 @@
 	import { onMount, onDestroy } from "svelte";
 	import * as GoChartingSDK from "@gocharting/chart-sdk";
 	import type { ChartWrapper } from "@gocharting/chart-sdk";
-	import { createMockDatafeed, SYMBOL } from "./mock-datafeed";
+	import { createWebSocketDatafeed, DEFAULT_SYMBOL } from "./ws-datafeed";
 
 	// Demo license key — replace with your own from the GoCharting dashboard.
 	const LICENSE_KEY = "demo-550e8400-e29b-41d4-a716-446655440000";
@@ -13,9 +13,9 @@
 	// onMount only runs in the browser, so the SDK never executes during SSR.
 	onMount(() => {
 		chart = GoChartingSDK.createChart(container, {
-			symbol: SYMBOL,
-			interval: "1D",
-			datafeed: createMockDatafeed(),
+			symbol: DEFAULT_SYMBOL,
+			interval: "5m",
+			datafeed: createWebSocketDatafeed(),
 			licenseKey: LICENSE_KEY,
 			theme: "dark",
 		});

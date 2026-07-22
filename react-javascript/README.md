@@ -3,7 +3,7 @@
 The GoCharting SDK in a plain React component (no TypeScript), built with [Vite](https://vite.dev).
 The TypeScript variant is in [../react-typescript](../react-typescript).
 
-Runs against a synthetic offline datafeed — no backend needed once the package is installed.
+Streams live market data (BYBIT BTCUSDT) over the GoCharting demo WebSocket. Requires network access.
 
 ## Run it
 
@@ -22,4 +22,4 @@ Then open the printed URL (default http://localhost:5173).
 
 - [`src/Chart.jsx`](./src/Chart.jsx) — the integration: one `createChart` call inside
   `useEffect`, torn down with `chart.destroy()` on unmount.
-- [`src/mock-datafeed.js`](./src/mock-datafeed.js) — synthetic datafeed; swap for your own provider.
+- [`src/ws-datafeed.js`](./src/ws-datafeed.js) — WebSocket datafeed (getBars, resolveSymbol, subscribeTicks, searchSymbols). See the [demo-websocket guide](https://gocharting.com/sdk/docs/guides/demo-websocket).

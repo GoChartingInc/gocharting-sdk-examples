@@ -2,7 +2,7 @@
 
 The GoCharting SDK embedded in a React component with typed configuration and proper mount/unmount lifecycle. Uses [Vite](https://vite.dev) for the dev server.
 
-Runs fully offline against a synthetic datafeed — no backend or API key required.
+Streams live market data (BYBIT BTCUSDT) over the GoCharting demo WebSocket. Requires network access.
 
 ## Run it
 
@@ -22,7 +22,7 @@ Then open the printed URL (default http://localhost:5173).
 - [`src/Chart.tsx`](./src/Chart.tsx) — the integration: one `createChart` call inside
   `useEffect`, torn down with `chart.destroy()` on unmount (which also handles React
   Strict Mode's double-invoke in development).
-- [`src/mock-datafeed.ts`](./src/mock-datafeed.ts) — a synthetic datafeed implementing
+- [`src/ws-datafeed.ts`](./src/ws-datafeed.ts) — the WebSocket datafeed implementing
   `getBars`, `resolveSymbol`, and `subscribeTicks` / `unsubscribeTicks`. Replace this
   with your own provider to show real data — the interface stays the same.
 
@@ -32,7 +32,7 @@ Then open the printed URL (default http://localhost:5173).
 import { useEffect, useRef } from "react";
 import * as GoChartingSDK from "@gocharting/chart-sdk";
 import type { ChartWrapper } from "@gocharting/chart-sdk";
-import { createMockDatafeed, SYMBOL } from "./mock-datafeed";
+import { createWebSocketDatafeed, DEFAULT_SYMBOL } from "./ws-datafeed";
 
 export function Chart() {
 	const containerRef = useRef<HTMLDivElement>(null);
@@ -41,9 +41,9 @@ export function Chart() {
 	useEffect(() => {
 		if (!containerRef.current) return;
 		const chart = GoChartingSDK.createChart(containerRef.current, {
-			symbol: SYMBOL,
-			interval: "1D",
-			datafeed: createMockDatafeed(),
+			symbol: DEFAULT_SYMBOL,
+			interval: "5m",
+			datafeed: createWebSocketDatafeed(),
 			licenseKey: "YOUR_LICENSE_KEY",
 			theme: "dark",
 		});

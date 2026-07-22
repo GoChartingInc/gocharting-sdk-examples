@@ -3,7 +3,7 @@
 The GoCharting SDK in an Angular standalone component, using the component lifecycle hooks
 and the Angular CLI build.
 
-Runs fully offline against a synthetic datafeed — no backend or API key required.
+Streams live market data (BYBIT BTCUSDT) over the GoCharting demo WebSocket. Requires network access.
 
 ## Run it
 
@@ -23,7 +23,7 @@ Then open http://localhost:4200.
 - [`src/app/chart.component.ts`](./src/app/chart.component.ts) — the integration:
   `createChart` in `ngAfterViewInit` (the container `@ViewChild` is available by then),
   torn down with `chart.destroy()` in `ngOnDestroy`.
-- [`src/app/mock-datafeed.ts`](./src/app/mock-datafeed.ts) — synthetic datafeed; swap for your own provider.
+- [`src/app/ws-datafeed.ts`](./src/app/ws-datafeed.ts) — WebSocket datafeed (getBars, resolveSymbol, subscribeTicks, searchSymbols). See the [demo-websocket guide](https://gocharting.com/sdk/docs/guides/demo-websocket).
 
 ## The integration in full
 
@@ -41,9 +41,9 @@ export class ChartComponent implements AfterViewInit, OnDestroy {
 
 	ngAfterViewInit(): void {
 		this.chart = GoChartingSDK.createChart(this.container.nativeElement, {
-			symbol: SYMBOL,
-			interval: "1D",
-			datafeed: createMockDatafeed(),
+			symbol: DEFAULT_SYMBOL,
+			interval: "5m",
+			datafeed: createWebSocketDatafeed(),
 			licenseKey: "YOUR_LICENSE_KEY",
 			theme: "dark",
 		});

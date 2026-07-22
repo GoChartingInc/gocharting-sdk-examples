@@ -3,7 +3,7 @@
 The GoCharting SDK in a Vue 3 single-file component using the Composition API and
 [Vite](https://vite.dev).
 
-Runs fully offline against a synthetic datafeed — no backend or API key required.
+Streams live market data (BYBIT BTCUSDT) over the GoCharting demo WebSocket. Requires network access.
 
 ## Run it
 
@@ -23,7 +23,7 @@ Then open the printed URL (default http://localhost:5173).
 - [`src/Chart.vue`](./src/Chart.vue) — the integration: `createChart` in `onMounted`,
   torn down with `chart.destroy()` in `onBeforeUnmount`, using a template ref for the
   container element.
-- [`src/mock-datafeed.ts`](./src/mock-datafeed.ts) — synthetic datafeed; swap for your own provider.
+- [`src/ws-datafeed.ts`](./src/ws-datafeed.ts) — WebSocket datafeed (getBars, resolveSymbol, subscribeTicks, searchSymbols). See the [demo-websocket guide](https://gocharting.com/sdk/docs/guides/demo-websocket).
 
 ## The integration in full
 
@@ -32,7 +32,7 @@ Then open the printed URL (default http://localhost:5173).
 import { onMounted, onBeforeUnmount, ref } from "vue";
 import * as GoChartingSDK from "@gocharting/chart-sdk";
 import type { ChartWrapper } from "@gocharting/chart-sdk";
-import { createMockDatafeed, SYMBOL } from "./mock-datafeed";
+import { createWebSocketDatafeed, DEFAULT_SYMBOL } from "./ws-datafeed";
 
 const container = ref<HTMLDivElement | null>(null);
 let chart: ChartWrapper | null = null;
@@ -40,9 +40,9 @@ let chart: ChartWrapper | null = null;
 onMounted(() => {
 	if (!container.value) return;
 	chart = GoChartingSDK.createChart(container.value, {
-		symbol: SYMBOL,
-		interval: "1D",
-		datafeed: createMockDatafeed(),
+		symbol: DEFAULT_SYMBOL,
+		interval: "5m",
+		datafeed: createWebSocketDatafeed(),
 		licenseKey: "YOUR_LICENSE_KEY",
 		theme: "dark",
 	});

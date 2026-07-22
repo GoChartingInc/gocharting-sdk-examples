@@ -3,7 +3,7 @@
 The GoCharting SDK in a SvelteKit app. The SDK renders to a browser canvas and must not run
 during SSR, so the chart route opts out of server rendering.
 
-Runs against a synthetic offline datafeed — no backend needed once the package is installed.
+Streams live market data (BYBIT BTCUSDT) over the GoCharting demo WebSocket. Requires network access.
 
 ## Run it
 
@@ -28,4 +28,4 @@ the SDK never executes on the server.
 
 - [`src/lib/Chart.svelte`](./src/lib/Chart.svelte) — `createChart` in `onMount`, torn down
   with `chart.destroy()` in `onDestroy`, using `bind:this` for the container element.
-- [`src/lib/mock-datafeed.ts`](./src/lib/mock-datafeed.ts) — synthetic datafeed; swap for your own provider.
+- [`src/lib/ws-datafeed.ts`](./src/lib/ws-datafeed.ts) — WebSocket datafeed (getBars, resolveSymbol, subscribeTicks, searchSymbols). See the [demo-websocket guide](https://gocharting.com/sdk/docs/guides/demo-websocket).

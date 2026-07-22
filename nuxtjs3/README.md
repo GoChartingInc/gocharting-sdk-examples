@@ -3,7 +3,7 @@
 The GoCharting SDK in a Nuxt 3 app. The SDK is browser-only, so the chart lives in a
 **client-only component** (`.client.vue` suffix) that Nuxt never server-renders.
 
-Runs against a synthetic offline datafeed — no backend needed once the package is installed.
+Streams live market data (BYBIT BTCUSDT) over the GoCharting demo WebSocket. Requires network access.
 
 ## Run it
 
@@ -29,4 +29,4 @@ final layout size before the canvas is measured.
 
 - [`components/Chart.client.vue`](./components/Chart.client.vue) — `createChart` in `onMounted`,
   torn down with `chart.destroy()` in `onBeforeUnmount`.
-- [`components/mock-datafeed.ts`](./components/mock-datafeed.ts) — synthetic datafeed; swap for your own provider.
+- [`components/ws-datafeed.ts`](./components/ws-datafeed.ts) — WebSocket datafeed (getBars, resolveSymbol, subscribeTicks, searchSymbols). See the [demo-websocket guide](https://gocharting.com/sdk/docs/guides/demo-websocket).

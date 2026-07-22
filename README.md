@@ -4,22 +4,24 @@ Minimal, self-contained examples of integrating the [GoCharting SDK](https://www
 
 > **The GoCharting SDK is a licensed product**, distributed as a compiled package — not open source. These examples are public integration *templates*; running them requires access to the `@gocharting/chart-sdk` package and a license key. See [Getting the SDK](#getting-the-sdk).
 
-Most examples ship with a synthetic **offline datafeed** and a **demo license key**, so once you have package access they run with no backend and no network. The [`datafeed-websocket`](./datafeed-websocket) example is the exception — it streams **real** market data. Swap the datafeed for your own once you've seen it work — see [Connecting real data](#connecting-real-data).
+Every example streams **live market data** (BYBIT BTCUSDT) over the GoCharting demo WebSocket and ships with a **demo license key**, so once you have package access they run against real data out of the box. They require network access. Point the datafeed at your own provider once you've seen it work — see [Connecting real data](#connecting-real-data).
 
 ## Examples
 
-| Example | Framework | Build tool | Live data | Notes |
-| --- | --- | --- | --- | --- |
-| [`javascript`](./javascript) | None (vanilla) | Vite | ✅ | Smallest possible integration — one `createChart` call |
-| [`react-typescript`](./react-typescript) | React + TypeScript | Vite | ✅ | Typed `createChart`, mount/unmount lifecycle |
-| [`react-javascript`](./react-javascript) | React (JavaScript) | Vite | ✅ | Same integration without TypeScript |
-| [`nextjs`](./nextjs) | Next.js (App Router) | Next | ✅ | Client-only dynamic import (`ssr: false`) |
-| [`vue`](./vue) | Vue 3 | Vite | ✅ | Composition API, template ref lifecycle |
-| [`nuxtjs3`](./nuxtjs3) | Nuxt 3 | Nuxt | ✅ | Client-only component (`.client.vue`) |
-| [`sveltekit`](./sveltekit) | SvelteKit | Vite | ✅ | `ssr: false` route + `onMount` |
-| [`solidjs-typescript`](./solidjs-typescript) | SolidJS + TypeScript | Vite | ✅ | `onMount` / `onCleanup` lifecycle |
-| [`angular`](./angular) | Angular | Angular CLI | ✅ | Standalone component, lifecycle hooks |
-| [`datafeed-websocket`](./datafeed-websocket) | — | Vite | 🌐 real | Live BYBIT data over the GoCharting demo WebSocket |
+Every example wires the same [`ws-datafeed`](./datafeed-websocket/src/ws-datafeed.ts) into its framework's lifecycle:
+
+| Example | Framework | Build tool | Notes |
+| --- | --- | --- | --- |
+| [`javascript`](./javascript) | None (vanilla) | Vite | Smallest possible integration — one `createChart` call |
+| [`react-typescript`](./react-typescript) | React + TypeScript | Vite | Typed `createChart`, mount/unmount lifecycle |
+| [`react-javascript`](./react-javascript) | React (JavaScript) | Vite | Same integration without TypeScript |
+| [`nextjs`](./nextjs) | Next.js (App Router) | Next | Client-only dynamic import (`ssr: false`) |
+| [`vue`](./vue) | Vue 3 | Vite | Composition API, template ref lifecycle |
+| [`nuxtjs3`](./nuxtjs3) | Nuxt 3 | Nuxt | Client-only component (`.client.vue`) |
+| [`sveltekit`](./sveltekit) | SvelteKit | Vite | `ssr: false` route + `onMount` |
+| [`solidjs-typescript`](./solidjs-typescript) | SolidJS + TypeScript | Vite | `onMount` / `onCleanup` lifecycle |
+| [`angular`](./angular) | Angular | Angular CLI | Standalone component, lifecycle hooks |
+| [`datafeed-websocket`](./datafeed-websocket) | None (vanilla) | Vite | Focused walkthrough of the datafeed itself |
 
 Native/backend targets (Android WebView, iOS WKWebView, React Native, Rails) follow the same
 "host a page that embeds the SDK" pattern but aren't included yet — see [Roadmap](#roadmap).
@@ -60,8 +62,8 @@ Every example boils down to this:
 import * as GoChartingSDK from "@gocharting/chart-sdk";
 
 const chart = GoChartingSDK.createChart("#chart", {
-  symbol: "DEMO:BTCUSD",
-  interval: "1D",
+  symbol: "BYBIT:FUTURE:BTCUSDT",
+  interval: "5m",
   datafeed: myDatafeed,        // implements getBars + resolveSymbol
   licenseKey: "YOUR_LICENSE_KEY",
   theme: "dark",
@@ -80,9 +82,9 @@ Optionally add `subscribeTicks` / `unsubscribeTicks` for real-time updates and `
 
 ## Connecting real data
 
-The bundled `mock-datafeed` generates a synthetic random walk so examples run offline. To use real data, replace it with a datafeed that fetches from your provider. The shape is identical — implement `getBars` and `resolveSymbol` against your API instead of the generator.
+Every example uses the same [`ws-datafeed`](./datafeed-websocket/src/ws-datafeed.ts), which implements the SDK's `Datafeed` interface (`getBars`, `resolveSymbol`, `subscribeTicks`/`unsubscribeTicks`, `searchSymbols`) over the GoCharting demo WebSocket. The [`datafeed-websocket`](./datafeed-websocket) example is a focused walkthrough of how it maps to the wire protocol.
 
-For a working real-data feed, see [`datafeed-websocket`](./datafeed-websocket) — it implements `getBars`, `resolveSymbol`, `subscribeTicks`/`unsubscribeTicks`, and `searchSymbols` against the GoCharting demo WebSocket, and its `ws-datafeed.ts` drops into any framework example.
+To use your own data, replace `ws-datafeed` with a datafeed that talks to your provider — the interface is identical. The demo feed is allowlisted to two symbols (`BYBIT:FUTURE:BTCUSDT`, `BYBIT:FUTURE:ETHUSDT`) and rate-limited to ~5 connections per IP.
 
 ## Roadmap
 

@@ -2,7 +2,7 @@
 
 The GoCharting SDK in a SolidJS component using `onMount` / `onCleanup` and [Vite](https://vite.dev).
 
-Runs against a synthetic offline datafeed — no backend needed once the package is installed.
+Streams live market data (BYBIT BTCUSDT) over the GoCharting demo WebSocket. Requires network access.
 
 ## Run it
 
@@ -21,4 +21,4 @@ Then open the printed URL (default http://localhost:5173).
 
 - [`src/Chart.tsx`](./src/Chart.tsx) — the integration: `createChart` in `onMount`, torn
   down with `chart.destroy()` in `onCleanup`, using a `ref` for the container element.
-- [`src/mock-datafeed.ts`](./src/mock-datafeed.ts) — synthetic datafeed; swap for your own provider.
+- [`src/ws-datafeed.ts`](./src/ws-datafeed.ts) — WebSocket datafeed (getBars, resolveSymbol, subscribeTicks, searchSymbols). See the [demo-websocket guide](https://gocharting.com/sdk/docs/guides/demo-websocket).

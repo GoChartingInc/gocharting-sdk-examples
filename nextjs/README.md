@@ -4,7 +4,7 @@ The GoCharting SDK in a Next.js (App Router) app. The key detail is that the SDK
 to a browser canvas and must **never run during server-side rendering** — so the chart is
 loaded client-side only.
 
-Runs fully offline against a synthetic datafeed — no backend or API key required.
+Streams live market data (BYBIT BTCUSDT) over the GoCharting demo WebSocket. Requires network access.
 
 ## Run it
 
@@ -39,4 +39,4 @@ and tears it down with `chart.destroy()` on unmount — the same pattern as the
 
 - [`app/page.tsx`](./app/page.tsx) — client-only dynamic import of the chart.
 - [`app/Chart.tsx`](./app/Chart.tsx) — the `createChart` integration.
-- [`lib/mock-datafeed.ts`](./lib/mock-datafeed.ts) — synthetic datafeed; swap for your own provider.
+- [`lib/ws-datafeed.ts`](./lib/ws-datafeed.ts) — WebSocket datafeed (getBars, resolveSymbol, subscribeTicks, searchSymbols). See the [demo-websocket guide](https://gocharting.com/sdk/docs/guides/demo-websocket).

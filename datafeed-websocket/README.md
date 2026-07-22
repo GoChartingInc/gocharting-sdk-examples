@@ -1,8 +1,10 @@
 # WebSocket datafeed · GoCharting SDK example
 
-Unlike every other example in this repo (which use a synthetic **offline** feed), this one
-streams **real market data** from the GoCharting demo WebSocket — historical candles plus
-live trades. It's the datafeed you'd model your own provider on.
+Every example in this repo streams **real market data** from the GoCharting demo WebSocket
+via the shared [`ws-datafeed`](./src/ws-datafeed.ts). This example is the framework-free
+walkthrough of that datafeed — historical candles plus live trades — so you can see exactly
+how it maps to the wire protocol before wiring it into a framework. It's the datafeed you'd
+model your own provider on.
 
 > Requires network access. The demo feed is allowlisted to two symbols
 > (`BYBIT:FUTURE:BTCUSDT`, `BYBIT:FUTURE:ETHUSDT`) and rate-limited to ~5 connections per IP.
@@ -41,16 +43,22 @@ chart whose last candle updates in real time.
 A 20-second PING keeps the socket alive; the connection is opened lazily on the first
 `getBars`/`subscribeTicks` and shared across requests.
 
-## Using this feed in the other examples
+## The same datafeed in every example
 
-`ws-datafeed.ts` is framework-agnostic. To make any example (React, Vue, Angular, …) use
-real data, swap the import:
+`ws-datafeed.ts` is framework-agnostic, so each example (React, Vue, Angular, …) ships its
+own copy and wires it into that framework's lifecycle:
 
 ```ts
-// before — synthetic offline feed
-import { createMockDatafeed, SYMBOL } from "./mock-datafeed";
-// after — real WebSocket feed
-import { createWebSocketDatafeed as createMockDatafeed, DEFAULT_SYMBOL as SYMBOL } from "./ws-datafeed";
+import { createWebSocketDatafeed, DEFAULT_SYMBOL } from "./ws-datafeed";
+
+const chart = GoChartingSDK.createChart(container, {
+	symbol: DEFAULT_SYMBOL,          // BYBIT:FUTURE:BTCUSDT
+	interval: "5m",
+	datafeed: createWebSocketDatafeed(),
+	licenseKey: "YOUR_LICENSE_KEY",
+	theme: "dark",
+});
 ```
 
-(The examples default to the offline feed so they run with no network.)
+To use your own provider, replace `ws-datafeed` with a datafeed implementing the same
+`Datafeed` interface.

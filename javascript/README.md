@@ -4,7 +4,7 @@ The smallest possible integration — no framework, just a `createChart` call ag
 DOM element. Uses [Vite](https://vite.dev) to serve ES modules; the SDK itself needs no
 build step beyond bundling.
 
-Runs fully offline against a synthetic datafeed — no backend or API key required.
+Streams live market data (BYBIT BTCUSDT) over the GoCharting demo WebSocket. Requires network access.
 
 ## Run it
 
@@ -23,7 +23,7 @@ Then open the printed URL (default http://localhost:5173).
 
 - [`src/main.js`](./src/main.js) — the whole integration: import the SDK, call
   `createChart("#chart", { ... })`.
-- [`src/mock-datafeed.js`](./src/mock-datafeed.js) — a synthetic datafeed implementing
+- [`src/ws-datafeed.js`](./src/ws-datafeed.js) — the WebSocket datafeed implementing
   `getBars`, `resolveSymbol`, and `subscribeTicks` / `unsubscribeTicks`. Replace with
   your own provider for real data.
 
@@ -31,12 +31,12 @@ Then open the printed URL (default http://localhost:5173).
 
 ```js
 import * as GoChartingSDK from "@gocharting/chart-sdk";
-import { createMockDatafeed, SYMBOL } from "./mock-datafeed.js";
+import { createWebSocketDatafeed, DEFAULT_SYMBOL } from "./ws-datafeed.js";
 
 const chart = GoChartingSDK.createChart("#chart", {
-	symbol: SYMBOL,
-	interval: "1D",
-	datafeed: createMockDatafeed(),
+	symbol: DEFAULT_SYMBOL,
+	interval: "5m",
+	datafeed: createWebSocketDatafeed(),
 	licenseKey: "YOUR_LICENSE_KEY",
 	theme: "dark",
 });
