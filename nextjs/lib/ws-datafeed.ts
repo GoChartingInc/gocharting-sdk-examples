@@ -11,9 +11,10 @@ import type {
 // GoCharting demo WebSocket datafeed.
 // Protocol: https://gocharting.com/sdk/docs/guides/demo-websocket
 //
-// Unlike the synthetic mock feed the other examples use, this connects to a
-// real server: `timeseries` for history, a `trade` channel for live ticks,
-// and a REST endpoint for symbol search. The demo is allowlisted to two
+// Every example in this repo uses this same feed. It connects to a real
+// server: `timeseries` for history, a `trade` channel for live ticks, and a
+// REST endpoint for symbol search (search is the one call that is not
+// WebSocket). The demo is allowlisted to two
 // symbols (BYBIT BTCUSDT / ETHUSDT perpetuals) and rate-limited to ~5
 // connections per IP.
 
