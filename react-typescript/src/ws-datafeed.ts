@@ -302,20 +302,33 @@ export function createWebSocketDatafeed(): Datafeed {
 				// which the server won't answer.
 				segment: meta.segment,
 				symbol: meta.symbol,
+				name: meta.description,
 				ticker: meta.symbol,
 				full_name: meta.key,
-				name: meta.description,
 				description: meta.description,
 				type: "crypto",
 				asset_type: "CRYPTO",
 				session: "24x7",
-				timezone: "Etc/UTC",
+				timezone: "UTC",
 				has_intraday: true,
-				quote_currency: "USDT",
+				has_daily: true,
+				supported_resolutions: ["1m", "5m", "15m", "1h", "4h", "1D"],
 				tick_size: meta.tick_size,
+				display_tick_size: meta.tick_size,
 				max_tick_precision: meta.max_tick_precision,
 				data_status: "streaming",
-				supported_resolutions: ["1m", "5m", "15m", "1h", "4h", "1D"],
+				delay_seconds: 0,
+				tradeable: true,
+				quote_currency: "USDT",
+				// exchange_info (hours / valid_intervals) is consumed by the
+				// symbol-switch path; omitting it crashes setSymbol when a user
+				// picks a symbol from the search box.
+				exchange_info: {
+					code: "BYBIT",
+					zone: "UTC",
+					hours: Array.from({ length: 7 }, () => ({ open: true })),
+					valid_intervals: ["1m", "5m", "15m", "1h", "4h", "1D"],
+				},
 			} as SymbolInfo);
 		},
 
