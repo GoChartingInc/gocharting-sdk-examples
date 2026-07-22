@@ -1,0 +1,31 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GoCharting SDK · Django</title>
+    <style>
+      html, body, #chart { margin: 0; height: 100%; width: 100%; background: #0d0f14; }
+    </style>
+  </head>
+  <body>
+    <div id="chart"></div>
+
+    {# Copy index.umd.js from your licensed @gocharting/chart-sdk package into
+       chartapp/static/. Never commit it to a public repo. #}
+    <script src="{% static 'index.umd.js' %}"></script>
+    <script src="{% static 'ws-datafeed.js' %}"></script>
+
+    <script>
+      window.addEventListener("DOMContentLoaded", function () {
+        window.chart = window.GoChartingSDK.createChart("#chart", {
+          symbol: "{{ symbol|escapejs }}",
+          interval: "{{ interval|escapejs }}",
+          datafeed: window.createWebSocketDatafeed(),
+          licenseKey: "{{ license_key|escapejs }}",
+          theme: "dark"
+        });
+      });
+    </script>
+  </body>
+</html>

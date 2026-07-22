@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GoCharting SDK · Ruby on Rails</title>
+    <style>
+      html, body, #chart { margin: 0; height: 100%; width: 100%; background: #0d0f14; }
+    </style>
+  </head>
+  <body>
+    <div id="chart"></div>
+
+    <%#
+      Copy index.umd.js out of your licensed @gocharting/chart-sdk package into
+      public/ so it is served as a static asset. Never commit it to a public repo.
+    %>
+    <%= javascript_include_tag "/index.umd.js", defer: false %>
+    <%= javascript_include_tag "/ws-datafeed.js", defer: false %>
+
+    <script>
+      window.addEventListener("DOMContentLoaded", function () {
+        window.chart = window.GoChartingSDK.createChart("#chart", {
+          symbol: <%= raw @symbol.to_json %>,
+          interval: <%= raw @interval.to_json %>,
+          datafeed: window.createWebSocketDatafeed(),
+          licenseKey: <%= raw @license_key.to_json %>,
+          theme: "dark"
+        });
+      });
+    </script>
+  </body>
+</html>

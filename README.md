@@ -8,7 +8,9 @@ Every example streams **live market data** (BYBIT BTCUSDT) over the GoCharting d
 
 ## Examples
 
-Every example wires the same [`ws-datafeed`](./datafeed-websocket/src/ws-datafeed.ts) into its framework's lifecycle:
+### Web
+
+Each of these wires the same [`ws-datafeed`](./datafeed-websocket/src/ws-datafeed.ts) into its framework's lifecycle:
 
 | Example | Framework | Build tool | Notes |
 | --- | --- | --- | --- |
@@ -23,8 +25,32 @@ Every example wires the same [`ws-datafeed`](./datafeed-websocket/src/ws-datafee
 | [`angular`](./angular) | Angular | Angular CLI | Standalone component, lifecycle hooks |
 | [`datafeed-websocket`](./datafeed-websocket) | None (vanilla) | Vite | Focused walkthrough of the datafeed itself |
 
-Native/backend targets (Android WebView, iOS WKWebView, React Native, Rails) follow the same
-"host a page that embeds the SDK" pattern but aren't included yet — see [Roadmap](#roadmap).
+### Native (WebView hosts)
+
+The SDK is a browser library, so native apps embed it in a WebView. These load a
+`chart.html` configured with **`isNativeApp: true`** — the SDK renders the **chart canvas
+only** (no JS toolbars) and posts every event to the native bridge, so your app owns the
+chrome. Native code drives the chart back via `window.chart`.
+
+| Example | Platform | WebView | Bridge global |
+| --- | --- | --- | --- |
+| [`android`](./android) | Android (Kotlin) | `WebView` | `window.Android` (`@JavascriptInterface`) |
+| [`ios-swift`](./ios-swift) | iOS (Swift) | `WKWebView` | `window.webkit.messageHandlers.ios` |
+| [`react-native`](./react-native) | React Native | `react-native-webview` | `window.ReactNativeWebView` |
+| [`flutter`](./flutter) | Flutter (Dart) | `webview_flutter` | `window.Flutter` (JS channel) |
+
+See the [Mobile Integration guide](https://gocharting.com/sdk/docs/guides/mobile-integration)
+for the full event surface.
+
+### Server-rendered
+
+The server just renders the container and passes config into the page; the SDK still runs
+in the browser.
+
+| Example | Stack | Notes |
+| --- | --- | --- |
+| [`django`](./django) | Python / Django | Complete runnable project (`manage.py runserver`) |
+| [`ruby-on-rails`](./ruby-on-rails) | Ruby / Rails | Controller + view + route to drop into a Rails app |
 
 ## Getting the SDK
 
@@ -86,17 +112,16 @@ Every example uses the same [`ws-datafeed`](./datafeed-websocket/src/ws-datafeed
 
 To use your own data, replace `ws-datafeed` with a datafeed that talks to your provider — the interface is identical. The demo feed is allowlisted to two symbols (`BYBIT:FUTURE:BTCUSDT`, `BYBIT:FUTURE:ETHUSDT`) and rate-limited to ~5 connections per IP.
 
-## Roadmap
+## A note on the native examples
 
-Planned examples, mirroring the breadth of TradingView's example set:
+The web and Django examples are browser-tested. The four native hosts ship the integration
+code plus the `chart.html` they load — building them needs the platform toolchain
+(Android Studio, Xcode, Flutter SDK), so each README starts with the one-time scaffold
+step for that platform. The `chart.html` itself **is** verified: it renders the
+`isNativeApp` canvas with live data and posts to the native bridge.
 
-- **Native WebView hosts** — `android` (WebView), `ios-swift` (WKWebView), and `react-native`.
-  These embed a small HTML page that loads the SDK; the SDK ships `isNativeApp` + a
-  bidirectional bridge for host-owned chrome.
-- **Backend-rendered** — `ruby-on-rails` (and similar) serving the host page.
-
-The native and backend targets can't be verified in a headless web environment, so they'll
-land as reviewed templates rather than browser-tested examples.
+The Rails example ships as controller + view + route to drop into a `rails new` app,
+rather than a full generated application.
 
 ## License
 

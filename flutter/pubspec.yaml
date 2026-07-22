@@ -1,0 +1,21 @@
+name: gocharting_sdk_example_flutter
+description: GoCharting SDK embedded in a Flutter WebView.
+publish_to: "none"
+version: 1.0.0
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  webview_flutter: ^4.10.0
+
+dev_dependencies:
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    # chart.html plus the index.umd.js you copy in next to it.
+    - assets/

@@ -10,3 +10,11 @@ out/
 .vite/
 # Registry auth tokens for the private @gocharting/chart-sdk package — never commit
 .npmrc
+
+# Licensed SDK bundle — copy in locally, never commit
+index.umd.js
+
+# Python (Django example)
+.venv/
+__pycache__/
+*.pyc

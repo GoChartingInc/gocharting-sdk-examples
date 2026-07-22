@@ -1,0 +1,285 @@
+// GoCharting demo WebSocket datafeed (classic script — no bundler).
+// Protocol: https://gocharting.com/sdk/docs/guides/demo-websocket
+// Allowlisted to BYBIT BTCUSDT / ETHUSDT, ~5 connections per IP.
+// Exposes window.createWebSocketDatafeed() and window.DEFAULT_SYMBOL.
+
+(function () {
+				var DEMO_WS_URL = "wss://gocharting.com/sdk/ws";
+				var DEMO_SYMBOLS = [
+					{
+						key: "BYBIT:FUTURE:BTCUSDT",
+						exchange: "BYBIT",
+						segment: "FUTURE",
+						symbol: "BTCUSDT",
+						description: "Bybit BTC/USDT perpetual",
+						tick_size: 0.1,
+						max_tick_precision: 1,
+					},
+					{
+						key: "BYBIT:FUTURE:ETHUSDT",
+						exchange: "BYBIT",
+						segment: "FUTURE",
+						symbol: "ETHUSDT",
+						description: "Bybit ETH/USDT perpetual",
+						tick_size: 0.01,
+						max_tick_precision: 2,
+					},
+				];
+				window.DEFAULT_SYMBOL = "BYBIT:FUTURE:BTCUSDT";
+
+				function toIntervalString(resolution) {
+					if (resolution == null) return "5m";
+					if (typeof resolution === "string") return resolution;
+					if (resolution.type) return resolution.type;
+					if (resolution.baseType) return resolution.baseType;
+					if (resolution.scale === "minutes")
+						return (resolution.units || 1) + "m";
+					if (resolution.scale === "hours")
+						return resolution.units === 1 ? "1h" : resolution.units + "h";
+					if (resolution.scale === "days") return "1D";
+					return "5m";
+				}
+
+				function fullSymbolKey(s) {
+					if (typeof s === "string") {
+						for (var i = 0; i < DEMO_SYMBOLS.length; i++) {
+							var d = DEMO_SYMBOLS[i];
+							if (d.key === s || d.symbol === s) return d.key;
+						}
+						return s;
+					}
+					if (s && s.full_name) return s.full_name;
+					return (s && s.symbol) || window.DEFAULT_SYMBOL;
+				}
+
+				function parseBarTime(dateStr) {
+					var raw = String(dateStr);
+					var iso = /Z$|[+-]\d{2}:\d{2}$/.test(raw) ? raw : raw + "Z";
+					return Math.floor(new Date(iso).valueOf() / 1000);
+				}
+
+				function flattenBars(payloadBars) {
+					var out = [];
+					function push(b) {
+						out.push({
+							time: parseBarTime(b.date),
+							open: Number(b.open),
+							high: Number(b.high),
+							low: Number(b.low),
+							close: Number(b.close),
+							volume: Number(b.volume || 0),
+						});
+					}
+					if (Object.prototype.toString.call(payloadBars) === "[object Array]") {
+						payloadBars.forEach(push);
+					} else if (payloadBars && typeof payloadBars === "object") {
+						Object.keys(payloadBars).forEach(function (day) {
+							(payloadBars[day] || []).forEach(push);
+						});
+					}
+					out.sort(function (a, b) {
+						return a.time - b.time;
+					});
+					return out;
+				}
+
+				// UDF shape — the SDK multiplies `t` by 1000, so send unix seconds.
+				function barsToUDF(bars) {
+					if (!bars.length) return { s: "no_data", nextTime: null };
+					var t = [], o = [], h = [], l = [], c = [], v = [];
+					bars.forEach(function (b) {
+						t.push(b.time); o.push(b.open); h.push(b.high);
+						l.push(b.low); c.push(b.close); v.push(b.volume || 0);
+					});
+					return { s: "ok", t: t, o: o, h: h, l: l, c: c, v: v };
+				}
+
+				window.createWebSocketDatafeed = function () {
+					var ws = null, ready = null, reqId = 1, pingTimer = null;
+					var pending = {}, tickSubs = {};
+
+					function ensureWs() {
+						if (ws && (ws.readyState === 1 || ws.readyState === 0)) return ready;
+						ready = new Promise(function (resolve, reject) {
+							var socket = new WebSocket(DEMO_WS_URL);
+							ws = socket;
+							var opened = false;
+							socket.onopen = function () {
+								opened = true;
+								socket.send("PING");
+								if (pingTimer) clearInterval(pingTimer);
+								pingTimer = setInterval(function () {
+									if (socket.readyState === 1) socket.send("PING");
+								}, 20000);
+								resolve(socket);
+							};
+							socket.onerror = function () {
+								if (!opened) reject(new Error("Demo WebSocket connection failed"));
+							};
+							socket.onclose = function () {
+								if (pingTimer) clearInterval(pingTimer);
+								pingTimer = null; ws = null; ready = null;
+							};
+							socket.onmessage = handleMessage;
+						});
+						return ready;
+					}
+
+					function handleMessage(ev) {
+						if (typeof ev.data !== "string") return;
+						if (ev.data.indexOf("Welcome-") === 0 || ev.data.indexOf("PONG") === 0) return;
+						var msg;
+						try { msg = JSON.parse(ev.data); } catch (e) { return; }
+
+						if (msg.command === "ERROR") {
+							var pe = pending[msg.request_id];
+							if (pe) { clearTimeout(pe.timer); delete pending[msg.request_id];
+								pe.reject(new Error(msg.message || "Demo WebSocket ERROR")); }
+							return;
+						}
+
+						if (msg.command === "timeseries") {
+							var p = pending[msg.request_id];
+							if (!p) return;
+							p.chunks = p.chunks.concat(flattenBars(msg.payload && msg.payload.bars));
+							if (msg.final === 1 || msg.final === 2) {
+								clearTimeout(p.timer);
+								delete pending[msg.request_id];
+								var byTime = {};
+								p.chunks.forEach(function (b) { byTime[b.time] = b; });
+								var list = Object.keys(byTime).map(function (k) { return byTime[k]; });
+								list.sort(function (a, b) { return a.time - b.time; });
+								p.resolve(list);
+							}
+							return;
+						}
+
+						if (msg.channel === "trade" && msg.payload &&
+							Object.prototype.toString.call(msg.payload) !== "[object Array]" &&
+							msg.command !== "SUBSCRIBE" && msg.command !== "UNSUBSCRIBE") {
+							Object.keys(msg.payload).forEach(function (symbolKey) {
+								var trades = msg.payload[symbolKey];
+								if (Object.prototype.toString.call(trades) !== "[object Array]") return;
+								Object.keys(tickSubs).forEach(function (uid) {
+									var sub = tickSubs[uid];
+									if (sub.symbolKey !== symbolKey) return;
+									trades.forEach(function (t) {
+										if (!t || t.ltp == null) return;
+										var price = Number(t.ltp);
+										if (!isFinite(price)) return;
+										var qty = Number(t.l_sz != null ? t.l_sz : (t.sz || 0));
+										var ts = t.date ? new Date(t.date)
+											: (t.t_ms != null ? new Date(Number(t.t_ms)) : new Date());
+										if (isNaN(ts.getTime())) return;
+										var parts = symbolKey.split(":");
+										sub.callback({
+											type: "trade",
+											productId: symbolKey,
+											symbol: parts[2] || symbolKey,
+											exchange: parts[0] || "BYBIT",
+											segment: parts[1] || "FUTURE",
+											timeStamp: ts,
+											tradeID: String(t.id != null ? t.id : Date.now()),
+											price: price,
+											quantity: qty,
+											amount: price * qty,
+											side: String(t.side || "Buy").toUpperCase(),
+										});
+									});
+								});
+							});
+						}
+					}
+
+					return {
+						getBars: function (symbolInfo, resolution, periodParams) {
+							return ensureWs().then(function (socket) {
+								var symbol = fullSymbolKey(symbolInfo);
+								var interval = toIntervalString(resolution);
+								var rows = (periodParams && (periodParams.countBack || periodParams.rows)) || 300;
+								var request_id = reqId++;
+								return new Promise(function (resolve, reject) {
+									var timer = setTimeout(function () {
+										delete pending[request_id];
+										reject(new Error("timeseries timeout for " + symbol));
+									}, 20000);
+									pending[request_id] = { chunks: [], resolve: resolve, reject: reject, timer: timer };
+									socket.send(JSON.stringify({
+										request_id: request_id,
+										command: "timeseries",
+										payload: { symbol: symbol, interval: interval, session: "RTH", hint: "rows=" + rows },
+									}));
+								});
+							}).then(barsToUDF);
+						},
+
+						resolveSymbol: function (symbolName, onResolve, onError) {
+							var key = fullSymbolKey(symbolName);
+							var meta = null;
+							for (var i = 0; i < DEMO_SYMBOLS.length; i++) {
+								if (DEMO_SYMBOLS[i].key === key) { meta = DEMO_SYMBOLS[i]; break; }
+							}
+							if (!meta) {
+								if (onError) onError("Demo feed supports BTCUSDT / ETHUSDT only");
+								return;
+							}
+							onResolve({
+								exchange: meta.exchange,
+								// `segment` is required — the SDK rebuilds the
+								// exchange:segment:symbol key from these fields.
+								segment: meta.segment,
+								symbol: meta.symbol,
+								name: meta.description,
+								ticker: meta.symbol,
+								full_name: meta.key,
+								description: meta.description,
+								type: "crypto",
+								asset_type: "CRYPTO",
+								session: "24x7",
+								timezone: "UTC",
+								has_intraday: true,
+								has_daily: true,
+								supported_resolutions: ["1m", "5m", "15m", "1h", "4h", "1D"],
+								tick_size: meta.tick_size,
+								display_tick_size: meta.tick_size,
+								max_tick_precision: meta.max_tick_precision,
+								data_status: "streaming",
+								delay_seconds: 0,
+								tradeable: true,
+								quote_currency: "USDT",
+								// exchange_info is consumed by the symbol-switch path.
+								exchange_info: {
+									code: "BYBIT",
+									zone: "UTC",
+									hours: [0,1,2,3,4,5,6].map(function () { return { open: true }; }),
+									valid_intervals: ["1m", "5m", "15m", "1h", "4h", "1D"],
+								},
+							});
+						},
+
+						subscribeTicks: function (symbolInfo, resolution, onRealtimeCallback, subscriberUID) {
+							var symbolKey = fullSymbolKey(symbolInfo);
+							tickSubs[subscriberUID] = { symbolKey: symbolKey, callback: onRealtimeCallback };
+							ensureWs().then(function (socket) {
+								socket.send(JSON.stringify({
+									command: "SUBSCRIBE", channel: "trade", payload: [symbolKey],
+								}));
+							});
+						},
+
+						unsubscribeTicks: function (subscriberUID) {
+							var sub = tickSubs[subscriberUID];
+							delete tickSubs[subscriberUID];
+							if (!sub || !ws || ws.readyState !== 1) return;
+							var stillNeeded = Object.keys(tickSubs).some(function (uid) {
+								return tickSubs[uid].symbolKey === sub.symbolKey;
+							});
+							if (!stillNeeded) {
+								ws.send(JSON.stringify({
+									command: "UNSUBSCRIBE", channel: "trade", payload: [sub.symbolKey],
+								}));
+							}
+						},
+					};
+				};
+			})();
