@@ -5,8 +5,13 @@ The GoCharting SDK running in an Android `WebView`. The chart page is configured
 Your Kotlin code owns all chrome (toolbars, sheets, order tickets) and talks to the chart
 over a bridge.
 
-Streams live market data (BYBIT BTCUSDT) over the GoCharting demo WebSocket. Requires
-network access (`INTERNET` permission is already in the manifest).
+Ships a **self-contained mock datafeed** — synthetic BTCUSDT/ETHUSDT candles generated in
+the page, no network of any kind. Native WebViews load `chart.html` from the app bundle, a
+`file://` origin that hosted feeds reject, so a bundled feed is what lets these examples run
+anywhere and offline. Swap in your own datafeed when you wire up real data — the interface
+in `chart.html` is the whole contract.
+
+(The manifest keeps the `INTERNET` permission, since your own datafeed will need it.)
 
 ## Setup
 

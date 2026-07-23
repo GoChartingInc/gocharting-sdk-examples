@@ -5,8 +5,11 @@ The chart page is configured with **`isNativeApp: true`**, so the SDK renders th
 canvas only** — no JS toolbars. Your Dart code owns all chrome and talks to the chart over
 a JavaScript channel.
 
-Streams live market data (BYBIT BTCUSDT) over the GoCharting demo WebSocket. Requires
-network access.
+Ships a **self-contained mock datafeed** — synthetic BTCUSDT/ETHUSDT candles generated in
+the page, no network of any kind. Native WebViews load `chart.html` from the app bundle, a
+`file://` origin that hosted feeds reject, so a bundled feed is what lets these examples run
+anywhere and offline. Swap in your own datafeed when you wire up real data — the interface
+in `chart.html` is the whole contract.
 
 ## Setup
 

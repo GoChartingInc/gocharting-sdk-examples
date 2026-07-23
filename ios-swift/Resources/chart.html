@@ -32,12 +32,15 @@
 
 		<script>
 			// ---------------------------------------------------------------
-			// GoCharting demo WebSocket datafeed (classic script — no bundler).
-			// Protocol: https://gocharting.com/sdk/docs/guides/demo-websocket
-			// Allowlisted to BYBIT BTCUSDT / ETHUSDT, ~5 connections per IP.
+			// Self-contained mock datafeed — no network of any kind.
+			//
+			// Native WebViews load this page from the app bundle, which is a
+			// `file://` origin. Hosted feeds generally reject that origin, so a
+			// bundled mock is what makes these examples run anywhere, offline,
+			// on a plane, in CI. Swap it for your own datafeed when you wire up
+			// real data — the interface below is the whole contract.
 			// ---------------------------------------------------------------
 			(function () {
-				var DEMO_WS_URL = "wss://gocharting.com/sdk/ws";
 				var DEMO_SYMBOLS = [
 					{
 						key: "BYBIT:FUTURE:BTCUSDT",
@@ -47,6 +50,8 @@
 						description: "Bybit BTC/USDT perpetual",
 						tick_size: 0.1,
 						max_tick_precision: 1,
+						basePrice: 66000,
+						volatility: 0.0018,
 					},
 					{
 						key: "BYBIT:FUTURE:ETHUSDT",
@@ -56,9 +61,18 @@
 						description: "Bybit ETH/USDT perpetual",
 						tick_size: 0.01,
 						max_tick_precision: 2,
+						basePrice: 3500,
+						volatility: 0.0024,
 					},
 				];
 				window.DEFAULT_SYMBOL = "BYBIT:FUTURE:BTCUSDT";
+
+				function metaFor(key) {
+					for (var i = 0; i < DEMO_SYMBOLS.length; i++) {
+						if (DEMO_SYMBOLS[i].key === key) return DEMO_SYMBOLS[i];
+					}
+					return null;
+				}
 
 				function toIntervalString(resolution) {
 					if (resolution == null) return "5m";
@@ -73,6 +87,19 @@
 					return "5m";
 				}
 
+				function intervalSeconds(interval) {
+					var m = String(interval).match(/^(\d+)\s*([mhDdWw])$/);
+					if (!m) return 300;
+					var n = Number(m[1]);
+					switch (m[2]) {
+						case "m": return n * 60;
+						case "h": return n * 3600;
+						case "D": case "d": return n * 86400;
+						case "W": case "w": return n * 604800;
+					}
+					return 300;
+				}
+
 				function fullSymbolKey(s) {
 					if (typeof s === "string") {
 						for (var i = 0; i < DEMO_SYMBOLS.length; i++) {
@@ -85,175 +112,123 @@
 					return (s && s.symbol) || window.DEFAULT_SYMBOL;
 				}
 
-				function parseBarTime(dateStr) {
-					var raw = String(dateStr);
-					var iso = /Z$|[+-]\d{2}:\d{2}$/.test(raw) ? raw : raw + "Z";
-					return Math.floor(new Date(iso).valueOf() / 1000);
+				// Deterministic PRNG. Bars are a pure function of (symbol, bar
+				// time), so history never rewrites itself between reloads or
+				// when the user pans back — a plain Math.random() walk would.
+				function hashSeed(str, t) {
+					var h = 2166136261;
+					for (var i = 0; i < str.length; i++) {
+						h ^= str.charCodeAt(i);
+						h = (h * 16777619) >>> 0;
+					}
+					h ^= t & 0xffffffff;
+					h = (h * 16777619) >>> 0;
+					return h;
 				}
 
-				function flattenBars(payloadBars) {
-					var out = [];
-					function push(b) {
-						out.push({
-							time: parseBarTime(b.date),
-							open: Number(b.open),
-							high: Number(b.high),
-							low: Number(b.low),
-							close: Number(b.close),
-							volume: Number(b.volume || 0),
+				function rand01(seed) {
+					var t = (seed + 0x6d2b79f5) >>> 0;
+					t = Math.imul(t ^ (t >>> 15), 1 | t);
+					t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+					return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+				}
+
+				// One underlying price curve, sampled per minute and keyed on
+				// absolute time only. It must NOT depend on the chart interval:
+				// the SDK asks getBars for the display resolution but
+				// subscribes ticks at a finer base, so an interval-dependent
+				// curve puts history and live ticks on two different tracks
+				// hundreds of points apart.
+				var PRICE_STEP = 60;
+
+				function priceAt(meta, tSec) {
+					var steps = Math.floor(tSec / PRICE_STEP);
+					var drift = 0;
+					// Bounded window, so distant history stays near basePrice
+					// instead of wandering off to zero or infinity.
+					for (var i = 0; i < 240; i++) {
+						var s = hashSeed(meta.key, steps - i);
+						drift += (rand01(s) - 0.5) * meta.volatility * 0.5;
+					}
+					return meta.basePrice * (1 + drift);
+				}
+
+				function buildBars(meta, fromSec, toSec, stepSec) {
+					var bars = [];
+					var start = Math.floor(fromSec / stepSec) * stepSec;
+					var end = Math.floor(toSec / stepSec) * stepSec;
+					// Guard against absurd ranges asking for millions of bars.
+					if ((end - start) / stepSec > 5000) start = end - stepSec * 5000;
+					for (var t = start; t <= end; t += stepSec) {
+						var open = priceAt(meta, t);
+						var close = priceAt(meta, t + stepSec);
+						var s = hashSeed(meta.key + "wick", t);
+						var spread = Math.abs(close - open) + meta.basePrice * meta.volatility * rand01(s);
+						var high = Math.max(open, close) + spread * rand01(s + 1) * 0.6;
+						var low = Math.min(open, close) - spread * rand01(s + 2) * 0.6;
+						var vol = 20 + rand01(s + 3) * 180;
+						bars.push({
+							time: t,
+							open: open,
+							high: high,
+							low: low,
+							close: close,
+							volume: vol,
 						});
 					}
-					if (Object.prototype.toString.call(payloadBars) === "[object Array]") {
-						payloadBars.forEach(push);
-					} else if (payloadBars && typeof payloadBars === "object") {
-						Object.keys(payloadBars).forEach(function (day) {
-							(payloadBars[day] || []).forEach(push);
-						});
-					}
-					out.sort(function (a, b) {
-						return a.time - b.time;
-					});
-					return out;
+					return bars;
 				}
 
 				// UDF shape — the SDK multiplies `t` by 1000, so send unix seconds.
-				function barsToUDF(bars) {
+				function barsToUDF(bars, tickSize) {
 					if (!bars.length) return { s: "no_data", nextTime: null };
+					var round = function (v) {
+						var p = tickSize < 1 ? String(tickSize).split(".")[1].length : 0;
+						return Number(v.toFixed(p));
+					};
 					var t = [], o = [], h = [], l = [], c = [], v = [];
 					bars.forEach(function (b) {
-						t.push(b.time); o.push(b.open); h.push(b.high);
-						l.push(b.low); c.push(b.close); v.push(b.volume || 0);
+						t.push(b.time);
+						o.push(round(b.open));
+						h.push(round(b.high));
+						l.push(round(b.low));
+						c.push(round(b.close));
+						v.push(Number(b.volume.toFixed(2)));
 					});
 					return { s: "ok", t: t, o: o, h: h, l: l, c: c, v: v };
 				}
 
-				window.createWebSocketDatafeed = function () {
-					var ws = null, ready = null, reqId = 1, pingTimer = null;
-					var pending = {}, tickSubs = {};
-
-					function ensureWs() {
-						if (ws && (ws.readyState === 1 || ws.readyState === 0)) return ready;
-						ready = new Promise(function (resolve, reject) {
-							var socket = new WebSocket(DEMO_WS_URL);
-							ws = socket;
-							var opened = false;
-							socket.onopen = function () {
-								opened = true;
-								socket.send("PING");
-								if (pingTimer) clearInterval(pingTimer);
-								pingTimer = setInterval(function () {
-									if (socket.readyState === 1) socket.send("PING");
-								}, 20000);
-								resolve(socket);
-							};
-							socket.onerror = function () {
-								if (!opened) reject(new Error("Demo WebSocket connection failed"));
-							};
-							socket.onclose = function () {
-								if (pingTimer) clearInterval(pingTimer);
-								pingTimer = null; ws = null; ready = null;
-							};
-							socket.onmessage = handleMessage;
-						});
-						return ready;
-					}
-
-					function handleMessage(ev) {
-						if (typeof ev.data !== "string") return;
-						if (ev.data.indexOf("Welcome-") === 0 || ev.data.indexOf("PONG") === 0) return;
-						var msg;
-						try { msg = JSON.parse(ev.data); } catch (e) { return; }
-
-						if (msg.command === "ERROR") {
-							var pe = pending[msg.request_id];
-							if (pe) { clearTimeout(pe.timer); delete pending[msg.request_id];
-								pe.reject(new Error(msg.message || "Demo WebSocket ERROR")); }
-							return;
-						}
-
-						if (msg.command === "timeseries") {
-							var p = pending[msg.request_id];
-							if (!p) return;
-							p.chunks = p.chunks.concat(flattenBars(msg.payload && msg.payload.bars));
-							if (msg.final === 1 || msg.final === 2) {
-								clearTimeout(p.timer);
-								delete pending[msg.request_id];
-								var byTime = {};
-								p.chunks.forEach(function (b) { byTime[b.time] = b; });
-								var list = Object.keys(byTime).map(function (k) { return byTime[k]; });
-								list.sort(function (a, b) { return a.time - b.time; });
-								p.resolve(list);
-							}
-							return;
-						}
-
-						if (msg.channel === "trade" && msg.payload &&
-							Object.prototype.toString.call(msg.payload) !== "[object Array]" &&
-							msg.command !== "SUBSCRIBE" && msg.command !== "UNSUBSCRIBE") {
-							Object.keys(msg.payload).forEach(function (symbolKey) {
-								var trades = msg.payload[symbolKey];
-								if (Object.prototype.toString.call(trades) !== "[object Array]") return;
-								Object.keys(tickSubs).forEach(function (uid) {
-									var sub = tickSubs[uid];
-									if (sub.symbolKey !== symbolKey) return;
-									trades.forEach(function (t) {
-										if (!t || t.ltp == null) return;
-										var price = Number(t.ltp);
-										if (!isFinite(price)) return;
-										var qty = Number(t.l_sz != null ? t.l_sz : (t.sz || 0));
-										var ts = t.date ? new Date(t.date)
-											: (t.t_ms != null ? new Date(Number(t.t_ms)) : new Date());
-										if (isNaN(ts.getTime())) return;
-										var parts = symbolKey.split(":");
-										sub.callback({
-											type: "trade",
-											productId: symbolKey,
-											symbol: parts[2] || symbolKey,
-											exchange: parts[0] || "BYBIT",
-											segment: parts[1] || "FUTURE",
-											timeStamp: ts,
-											tradeID: String(t.id != null ? t.id : Date.now()),
-											price: price,
-											quantity: qty,
-											amount: price * qty,
-											side: String(t.side || "Buy").toUpperCase(),
-										});
-									});
-								});
-							});
-						}
-					}
+				window.createMockDatafeed = function () {
+					var tickTimers = {};
 
 					return {
 						getBars: function (symbolInfo, resolution, periodParams) {
-							return ensureWs().then(function (socket) {
-								var symbol = fullSymbolKey(symbolInfo);
-								var interval = toIntervalString(resolution);
-								var rows = (periodParams && (periodParams.countBack || periodParams.rows)) || 300;
-								var request_id = reqId++;
-								return new Promise(function (resolve, reject) {
-									var timer = setTimeout(function () {
-										delete pending[request_id];
-										reject(new Error("timeseries timeout for " + symbol));
-									}, 20000);
-									pending[request_id] = { chunks: [], resolve: resolve, reject: reject, timer: timer };
-									socket.send(JSON.stringify({
-										request_id: request_id,
-										command: "timeseries",
-										payload: { symbol: symbol, interval: interval, session: "RTH", hint: "rows=" + rows },
-									}));
-								});
-							}).then(barsToUDF);
+							var key = fullSymbolKey(symbolInfo);
+							var meta = metaFor(key);
+							if (!meta) return Promise.resolve({ s: "no_data", nextTime: null });
+
+							var stepSec = intervalSeconds(toIntervalString(resolution));
+							var nowSec = Math.floor(Date.now() / 1000);
+							var toSec = periodParams && periodParams.to
+								? Number(periodParams.to)
+								: nowSec;
+							var fromSec = periodParams && periodParams.from
+								? Number(periodParams.from)
+								: toSec - stepSec * 300;
+							// periodParams may arrive as Date objects or ms.
+							if (toSec > 1e12) toSec = Math.floor(toSec / 1000);
+							if (fromSec > 1e12) fromSec = Math.floor(fromSec / 1000);
+							if (toSec > nowSec) toSec = nowSec;
+
+							var bars = buildBars(meta, fromSec, toSec, stepSec);
+							return Promise.resolve(barsToUDF(bars, meta.tick_size));
 						},
 
 						resolveSymbol: function (symbolName, onResolve, onError) {
 							var key = fullSymbolKey(symbolName);
-							var meta = null;
-							for (var i = 0; i < DEMO_SYMBOLS.length; i++) {
-								if (DEMO_SYMBOLS[i].key === key) { meta = DEMO_SYMBOLS[i]; break; }
-							}
+							var meta = metaFor(key);
 							if (!meta) {
-								if (onError) onError("Demo feed supports BTCUSDT / ETHUSDT only");
+								if (onError) onError("Mock feed supports BTCUSDT / ETHUSDT only");
 								return;
 							}
 							onResolve({
@@ -282,36 +257,83 @@
 								quote_currency: "USDT",
 								// exchange_info is consumed by the symbol-switch path.
 								exchange_info: {
-									code: "BYBIT",
+									name: "bybit",
+									code: meta.exchange,
 									zone: "UTC",
-									hours: [0,1,2,3,4,5,6].map(function () { return { open: true }; }),
+									hours: [
+										{ open: true }, { open: true }, { open: true },
+										{ open: true }, { open: true }, { open: true },
+										{ open: true },
+									],
 									valid_intervals: ["1m", "5m", "15m", "1h", "4h", "1D"],
 								},
 							});
 						},
 
-						subscribeTicks: function (symbolInfo, resolution, onRealtimeCallback, subscriberUID) {
-							var symbolKey = fullSymbolKey(symbolInfo);
-							tickSubs[subscriberUID] = { symbolKey: symbolKey, callback: onRealtimeCallback };
-							ensureWs().then(function (socket) {
-								socket.send(JSON.stringify({
-									command: "SUBSCRIBE", channel: "trade", payload: [symbolKey],
-								}));
+						searchSymbols: function (userInput, exchange, symbolType, onResult) {
+							var q = String(userInput || "").toLowerCase();
+							var items = DEMO_SYMBOLS.filter(function (d) {
+								return (
+									d.symbol.toLowerCase().indexOf(q) !== -1 ||
+									d.description.toLowerCase().indexOf(q) !== -1
+								);
+							}).map(function (d) {
+								return {
+									symbol: d.symbol,
+									full_name: d.key,
+									description: d.description,
+									exchange: d.exchange,
+									ticker: d.symbol,
+									type: "crypto",
+									key: d.key,
+								};
 							});
+							onResult({ searchInProgress: false, items: items });
+						},
+
+						subscribeTicks: function (symbolInfo, resolution, onRealtimeCallback, subscriberUID) {
+							var key = fullSymbolKey(symbolInfo);
+							var meta = metaFor(key);
+							if (!meta) return;
+							var stepSec = intervalSeconds(toIntervalString(resolution));
+
+							tickTimers[subscriberUID] = setInterval(function () {
+								// Same curve the bars came from, sampled at the
+								// current instant — so the live candle continues
+								// the history rather than starting elsewhere.
+								var nowSec = Math.floor(Date.now() / 1000);
+								var s = hashSeed(key + "tick", nowSec);
+								var last =
+									priceAt(meta, nowSec) *
+									(1 + (rand01(s) - 0.5) * meta.volatility * 0.2);
+								var qty = 0.01 + rand01(s + 1) * 0.5;
+								var parts = key.split(":");
+								onRealtimeCallback({
+									type: "trade",
+									productId: key,
+									symbol: parts[2] || key,
+									exchange: parts[0] || "BYBIT",
+									segment: parts[1] || "FUTURE",
+									timeStamp: new Date(),
+									tradeID: String(Date.now()),
+									price: Number(last.toFixed(meta.max_tick_precision)),
+									quantity: Number(qty.toFixed(3)),
+									amount: last * qty,
+									side: rand01(s + 2) > 0.5 ? "BUY" : "SELL",
+								});
+							}, 1000);
 						},
 
 						unsubscribeTicks: function (subscriberUID) {
-							var sub = tickSubs[subscriberUID];
-							delete tickSubs[subscriberUID];
-							if (!sub || !ws || ws.readyState !== 1) return;
-							var stillNeeded = Object.keys(tickSubs).some(function (uid) {
-								return tickSubs[uid].symbolKey === sub.symbolKey;
+							clearInterval(tickTimers[subscriberUID]);
+							delete tickTimers[subscriberUID];
+						},
+
+						destroy: function () {
+							Object.keys(tickTimers).forEach(function (uid) {
+								clearInterval(tickTimers[uid]);
 							});
-							if (!stillNeeded) {
-								ws.send(JSON.stringify({
-									command: "UNSUBSCRIBE", channel: "trade", payload: [sub.symbolKey],
-								}));
-							}
+							tickTimers = {};
 						},
 					};
 				};
@@ -335,7 +357,7 @@
 			window.chart = GoChartingSDK.createChart("#chart", {
 				symbol: window.DEFAULT_SYMBOL, // BYBIT:FUTURE:BTCUSDT
 				interval: "5m",
-				datafeed: window.createWebSocketDatafeed(),
+				datafeed: window.createMockDatafeed(),
 				// Replace with your own key from the GoCharting dashboard.
 				licenseKey: "demo-550e8400-e29b-41d4-a716-446655440000",
 				theme: "dark",
