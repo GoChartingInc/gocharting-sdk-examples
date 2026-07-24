@@ -377,5 +377,119 @@
 				},
 			});
 		</script>
+			<script>
+			// ---------------------------------------------------------------
+			// Native menu bridge — window.gcMenu
+			//
+			// One shared control surface every native host (iOS / Android /
+			// Flutter / React Native) calls to build its OWN menus. It hides
+			// two things so the native code stays thin and identical across
+			// platforms:
+			//   1. which object a method lives on (chart vs activeChart())
+			//   2. the exact type codes the SDK expects
+			//
+			// Native usage:
+			//   read   — evaluate `gcMenu.snapshot()` → JSON of everything a
+			//            menu renders (intervals, chart types, indicators,
+			//            active studies, drawing tools, current selections)
+			//   act    — evaluate `gcMenu.act("setInterval", "15m")` etc.;
+			//            returns a JSON string { ok, value } | { ok:false, error }
+			// ---------------------------------------------------------------
+			window.gcMenu = (function () {
+				function chart() { return window.chart; }
+				function apiOf() { return window.chart && window.chart.activeChart ? window.chart.activeChart() : null; }
+				function host(name) {
+					var c = chart();
+					if (c && typeof c[name] === "function") return c;
+					var a = apiOf();
+					if (a && typeof a[name] === "function") return a;
+					return null;
+				}
+				function call(name) {
+					var o = host(name);
+					if (!o) throw new Error("gcMenu: " + name + " is not available");
+					return o[name].apply(o, Array.prototype.slice.call(arguments, 1));
+				}
+
+				// Curated lists — only codes verified to resolve. Labels are for
+				// display; codes are what the SDK wants.
+				var INDICATORS = [
+					{ code: "RSI", label: "RSI" },
+					{ code: "MACD", label: "MACD" },
+					{ code: "EMA", label: "EMA" },
+					{ code: "SMA", label: "SMA" },
+					{ code: "ATR", label: "ATR" },
+					{ code: "STOCHRSI", label: "Stochastic RSI" },
+					{ code: "ONBALANCEVOLUME", label: "On-Balance Volume" }
+				];
+				var DRAWINGS = [
+					{ code: "trendline", label: "Trend line" },
+					{ code: "horizontal_line", label: "Horizontal line" },
+					{ code: "ray", label: "Ray" },
+					{ code: "rectangle", label: "Rectangle" },
+					{ code: "fib_retracement", label: "Fib retracement" },
+					{ code: "ellipse", label: "Ellipse" },
+					{ code: "brush", label: "Brush" }
+				];
+				var CHART_TYPES = [
+					{ code: "CANDLESTICK", label: "Candles" },
+					{ code: "HOLLOW_CANDLESTICK", label: "Hollow candles" },
+					{ code: "OHLC", label: "Bars" },
+					{ code: "LINE", label: "Line" },
+					{ code: "AREA", label: "Area" },
+					{ code: "HEIKIN_ASHI", label: "Heikin Ashi" }
+				];
+
+				function currentInterval() {
+					try { var a = apiOf(); return a && a.interval ? a.interval() : null; } catch (e) { return null; }
+				}
+				function currentType() {
+					try { var a = apiOf(); return a && a.chartType ? a.chartType() : null; } catch (e) { return null; }
+				}
+				function activeStudies() {
+					try {
+						var a = apiOf();
+						if (!a || !a.getStudies) return [];
+						return a.getStudies().map(function (s) { return { id: s.id, type: s.type || s.name }; });
+					} catch (e) { return []; }
+				}
+
+				var self = {
+					snapshot: function () {
+						return {
+							interval: { current: currentInterval(), options: (function () { try { return call("getIntervals"); } catch (e) { return []; } })() },
+							chartType: { current: currentType(), options: CHART_TYPES },
+							indicators: { popular: INDICATORS, active: activeStudies() },
+							drawings: { tools: DRAWINGS, current: (function () { try { return call("selectedLineTool"); } catch (e) { return null; } })() }
+						};
+					},
+
+					// Actions return a JSON-serialisable result so the host can
+					// confirm and refresh its UI.
+					act: function (action, arg) {
+						try {
+							var value;
+							switch (action) {
+								case "setInterval": call("setInterval", arg); value = arg; break;
+								case "setChartType": call("setChartType", arg); value = arg; break;
+								case "selectTool": call("selectLineTool", arg); value = call("selectedLineTool"); break;
+								case "clearDrawings": call("hideAllDrawingTools"); value = "cleared"; break;
+								case "addStudy": value = call("addStudy", arg); break; // returns id
+								case "removeStudy": call("removeStudy", arg); value = arg; break;
+								case "removeAllStudies": call("removeAllStudies"); value = "cleared"; break;
+								case "setSymbol": chart().setSymbol(arg); value = arg; break;
+								case "setTheme": chart().setTheme(arg); value = arg; break;
+								default: throw new Error("unknown action: " + action);
+							}
+							return JSON.stringify({ ok: true, action: action, value: value, active: activeStudies() });
+						} catch (e) {
+							return JSON.stringify({ ok: false, action: action, error: (e && e.message) || String(e) });
+						}
+					}
+				};
+				return self;
+			})();
+		</script>
+
 	</body>
 </html>
