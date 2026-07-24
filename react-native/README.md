@@ -1,11 +1,29 @@
 # React Native · GoCharting SDK example
 
 The GoCharting SDK running in [`react-native-webview`](https://github.com/react-native-webview/react-native-webview).
-The chart page is configured with **`isNativeApp: true`**, so the SDK renders the **mobile
-canvas only** — no JS toolbars. Your RN code owns all chrome and talks to the chart over
-the WebView bridge.
+The chart page is configured with **`isNativeApp: true`** and **`nativeChrome: "none"`**, so
+the SDK renders the **mobile canvas only** and this example builds its **own native menu
+bar** ([`NativeMenuBar.tsx`](./NativeMenuBar.tsx)) — the full native integration where the
+host owns all chrome.
 
-> This example ships with **`nativeChrome: "toolbar"`**, which keeps the JS **bottom** bar (interval, drawing tools, indicators, layers) — those menus are platform-specific and hard to rebuild natively, so it gives you a working mobile chart immediately. The top bar (symbol search / compare) stays hidden; that is the host's job. Set `nativeChrome: "none"` in `chart.html` once you build your own native menus.
+The native bar (Interval · Type · Draw · Indicators) drives the chart through a small JS
+bridge, **`window.gcMenu`**, defined in [`assets/chart.html`](./assets/chart.html). Each
+selection calls `gcMenu.act(action, arg)`. Reading menu state is the one platform
+difference: `injectJavaScript` is fire-and-forget, so `gcMenu.snapshot()` posts its result
+back over the message channel, and [`App.tsx`](./App.tsx) turns that into a Promise
+(`requestSnapshot`). The `gcMenu` calls are otherwise identical to the Swift / Kotlin /
+Dart examples — only the sheet UI (a `Modal`) differs.
+
+> **Prefer no native menu code?** Set `nativeChrome: "toolbar"` in `chart.html` instead.
+> The SDK then keeps its own JS bottom bar (interval, drawings, indicators, layers) and
+> you get a working mobile chart with zero menu code. The top bar (symbol search /
+> compare) stays hidden either way — that is always the host's job.
+>
+> **Loading the SDK bundle in debug.** `require("./assets/chart.html")` bundles the page
+> as a native asset, and in a **release** build its sibling `index.umd.js` loads from the
+> app bundle. In **debug**, Metro serves the page and refuses the `.js` sibling (it is a
+> source extension, not an asset), so the chart is blank. For a debug run, serve the two
+> files over `http://localhost` and point the WebView at that URL, or test in release.
 
 Ships a **self-contained mock datafeed** — synthetic BTCUSDT/ETHUSDT candles generated in
 the page, no network of any kind. Native WebViews load `chart.html` from the app bundle, a

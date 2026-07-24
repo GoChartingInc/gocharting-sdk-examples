@@ -2,13 +2,16 @@ import React, { useRef } from "react";
 import { SafeAreaView, StyleSheet } from "react-native";
 import { WebView, type WebViewMessageEvent } from "react-native-webview";
 
+import { NativeMenuBar } from "./NativeMenuBar";
+
 /**
  * Hosts the GoCharting SDK in a react-native-webview.
  *
- * assets/chart.html runs with `isNativeApp: true`, so the SDK renders the
- * mobile canvas only — this component owns all chrome and receives chart
- * events through onMessage. `window.ReactNativeWebView` is injected by the
- * WebView automatically, which is what the SDK posts to.
+ * assets/chart.html runs with `isNativeApp: true` and `nativeChrome: "none"`,
+ * so the SDK renders the mobile canvas only and this component builds its own
+ * native bottom bar (NativeMenuBar) driving the chart through the `gcMenu`
+ * bridge. Chart events arrive through onMessage; `window.ReactNativeWebView`
+ * is injected by the WebView automatically, which is what the SDK posts to.
  */
 // react-native-webview declares `class WebView<P = undefined>` extending
 // `Component<WebViewProps & P>`. With the default generic that intersects to
@@ -17,12 +20,20 @@ type ChartWebView = WebView<object>;
 
 export default function App() {
 	const webRef = useRef<ChartWebView>(null);
+	// Pending resolver for the current gcMenu.snapshot() round-trip.
+	const pendingSnapshot = useRef<((snap: unknown) => void) | null>(null);
 
 	const onMessage = (event: WebViewMessageEvent) => {
 		const msg = JSON.parse(event.nativeEvent.data);
+		// gcMenu.snapshot() posts its result back here (injectJavaScript can't
+		// return a value), so resolve the waiting requestSnapshot() Promise.
+		if (msg && msg.__gcSnapshot !== undefined) {
+			pendingSnapshot.current?.(msg.__gcSnapshot);
+			pendingSnapshot.current = null;
+			return;
+		}
 		switch (msg.type) {
 			case "OPEN_CONTEXT_MENU":
-				// msg has x / y / targetType / objectId — show your own sheet.
 				console.log("context menu at", msg.x, msg.y);
 				break;
 			case "PLACE_ORDER":
@@ -36,20 +47,22 @@ export default function App() {
 		}
 	};
 
-	// native → web: drive the chart. `window.chart` is exposed by chart.html.
-	const setSymbol = (symbol: string) =>
-		webRef.current?.injectJavaScript(
-			`window.chart && window.chart.setSymbol(${JSON.stringify(symbol)}); true;`,
-		);
+	// Ask the page for gcMenu.snapshot() and resolve when it posts back.
+	const requestSnapshot = () =>
+		new Promise<any>((resolve) => {
+			pendingSnapshot.current = resolve;
+			webRef.current?.injectJavaScript(
+				"window.ReactNativeWebView.postMessage(JSON.stringify({ __gcSnapshot: gcMenu.snapshot() })); true;",
+			);
+		});
 
-	const setInterval = (interval: string) =>
+	// Fire a gcMenu action. `arg` is JSON-encoded so it can't break out.
+	const act = (action: string, arg?: string) => {
+		const argJs = arg === undefined ? "undefined" : JSON.stringify(arg);
 		webRef.current?.injectJavaScript(
-			`window.chart && window.chart.setInterval(${JSON.stringify(interval)}); true;`,
+			`gcMenu.act(${JSON.stringify(action)}, ${argJs}); true;`,
 		);
-
-	// Silence unused warnings in this minimal example — wire these to your UI.
-	void setSymbol;
-	void setInterval;
+	};
 
 	return (
 		<SafeAreaView style={styles.container}>
@@ -65,6 +78,7 @@ export default function App() {
 				allowUniversalAccessFromFileURLs
 				style={styles.webview}
 			/>
+			<NativeMenuBar requestSnapshot={requestSnapshot} act={act} />
 		</SafeAreaView>
 	);
 }
