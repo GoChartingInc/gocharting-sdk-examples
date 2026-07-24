@@ -22,11 +22,28 @@ final class ChartViewController: UIViewController, WKScriptMessageHandler {
         config.userContentController = contentController
         config.allowsInlineMediaPlayback = true
 
-        webView = WKWebView(frame: view.bounds, configuration: config)
-        webView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        webView = WKWebView(frame: .zero, configuration: config)
         webView.scrollView.isScrollEnabled = false
         webView.isOpaque = false
+        webView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(webView)
+
+        // Native bottom bar — drives the chart through gcMenu (see chart.html).
+        let menuBar = NativeMenuBar(webView: webView, presenter: self)
+        menuBar.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(menuBar)
+
+        let guide = view.safeAreaLayoutGuide
+        NSLayoutConstraint.activate([
+            webView.topAnchor.constraint(equalTo: guide.topAnchor),
+            webView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            webView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            webView.bottomAnchor.constraint(equalTo: menuBar.topAnchor),
+
+            menuBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            menuBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            menuBar.bottomAnchor.constraint(equalTo: guide.bottomAnchor),
+        ])
 
         // chart.html and index.umd.js are bundled in Resources/.
         guard let url = Bundle.main.url(forResource: "chart", withExtension: "html") else {
