@@ -1,46 +1,58 @@
 import UIKit
 import WebKit
 
-/// A native bottom toolbar that drives the chart through the page's `gcMenu`
-/// bridge (see chart.html). This is the "option 3" integration: the SDK renders
-/// the canvas only (`nativeChrome: "none"`) and the host owns every menu.
+/// A native bottom bar that drives the chart through the page's `gcMenu` bridge
+/// (see chart.html). This is the "option 3" integration: the SDK renders the
+/// canvas only (`nativeChrome: "none"`) and the host owns every menu.
 ///
-/// Every control here is native UIKit. The only JavaScript is a `gcMenu.act(...)`
-/// call per selection and a `gcMenu.snapshot()` read to populate the sheets —
-/// the same two calls every platform makes, so this file is the reference the
-/// Android / Flutter / React Native menus mirror.
-final class NativeMenuBar: UIToolbar {
+/// Built as a plain `UIView` with a `UIStackView` of buttons — not a UIToolbar,
+/// whose background is overridden by the system appearance in dark mode and
+/// would render dark instead of brand yellow. Every control is native UIKit;
+/// the only JavaScript is a `gcMenu.act(...)` per selection and a
+/// `gcMenu.snapshot()` read to populate the sheets — the same two calls every
+/// platform makes, so this mirrors the Android / Flutter / React Native menus.
+final class NativeMenuBar: UIView {
 
     private weak var webView: WKWebView?
     /// Presents the action sheets — the hosting view controller.
     private weak var presenter: UIViewController?
 
+    private static let brand = UIColor(red: 1.0, green: 0.667, blue: 0.004, alpha: 1) // #ffaa01
+    private static let ink = UIColor(red: 0.10, green: 0.098, blue: 0.137, alpha: 1)  // #1a1923
+
     init(webView: WKWebView, presenter: UIViewController) {
         self.webView = webView
         self.presenter = presenter
         super.init(frame: .zero)
-        barTintColor = UIColor(red: 1.0, green: 0.667, blue: 0.004, alpha: 1) // brand #ffaa01
-        tintColor = UIColor(red: 0.10, green: 0.098, blue: 0.137, alpha: 1)   // ink #1a1923
-        isTranslucent = false
-        setItems(
-            [
-                item("Interval", #selector(pickInterval)),
-                .flexibleSpace(),
-                item("Type", #selector(pickChartType)),
-                .flexibleSpace(),
-                item("Draw", #selector(pickDrawing)),
-                .flexibleSpace(),
-                item("Indicators", #selector(pickIndicators)),
-            ],
-            animated: false
-        )
+        backgroundColor = Self.brand // a UIView background is never overridden
+
+        let stack = UIStackView(arrangedSubviews: [
+            button("Interval", #selector(pickInterval)),
+            button("Type", #selector(pickChartType)),
+            button("Draw", #selector(pickDrawing)),
+            button("Indicators", #selector(pickIndicators)),
+        ])
+        stack.axis = .horizontal
+        stack.distribution = .fillEqually
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo: leadingAnchor),
+            stack.trailingAnchor.constraint(equalTo: trailingAnchor),
+            stack.topAnchor.constraint(equalTo: topAnchor),
+            stack.bottomAnchor.constraint(equalTo: bottomAnchor),
+            heightAnchor.constraint(equalToConstant: 56),
+        ])
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) not used") }
 
-    private func item(_ title: String, _ action: Selector) -> UIBarButtonItem {
-        let b = UIBarButtonItem(title: title, style: .plain, target: self, action: action)
-        b.setTitleTextAttributes([.font: UIFont.systemFont(ofSize: 15, weight: .semibold)], for: .normal)
+    private func button(_ title: String, _ action: Selector) -> UIButton {
+        let b = UIButton(type: .system)
+        b.setTitle(title, for: .normal)
+        b.setTitleColor(Self.ink, for: .normal)
+        b.titleLabel?.font = .systemFont(ofSize: 15, weight: .semibold)
+        b.addTarget(self, action: action, for: .touchUpInside)
         return b
     }
 
@@ -71,18 +83,21 @@ final class NativeMenuBar: UIToolbar {
     // MARK: - Sheets
 
     private func sheet(_ title: String, _ options: [(label: String, handler: () -> Void)],
-                       source: UIBarButtonItem? = nil) {
+                       source: UIView? = nil) {
         let ac = UIAlertController(title: title, message: nil, preferredStyle: .actionSheet)
         for o in options {
             ac.addAction(UIAlertAction(title: o.label, style: .default) { _ in o.handler() })
         }
         ac.addAction(UIAlertAction(title: "Cancel", style: .cancel))
         // iPad requires a popover anchor.
-        ac.popoverPresentationController?.barButtonItem = source ?? items?.first
+        if let anchor = source ?? self as UIView? {
+            ac.popoverPresentationController?.sourceView = anchor
+            ac.popoverPresentationController?.sourceRect = anchor.bounds
+        }
         presenter?.present(ac, animated: true)
     }
 
-    @objc private func pickInterval(_ sender: UIBarButtonItem) {
+    @objc private func pickInterval(_ sender: UIButton) {
         snapshot { snap in
             let iv = snap["interval"] as? [String: Any]
             let current = iv?["current"] as? String
@@ -93,7 +108,7 @@ final class NativeMenuBar: UIToolbar {
         }
     }
 
-    @objc private func pickChartType(_ sender: UIBarButtonItem) {
+    @objc private func pickChartType(_ sender: UIButton) {
         snapshot { snap in
             let ct = snap["chartType"] as? [String: Any]
             let opts = (ct?["options"] as? [[String: Any]]) ?? []
@@ -104,7 +119,7 @@ final class NativeMenuBar: UIToolbar {
         }
     }
 
-    @objc private func pickDrawing(_ sender: UIBarButtonItem) {
+    @objc private func pickDrawing(_ sender: UIButton) {
         snapshot { snap in
             let d = snap["drawings"] as? [String: Any]
             let tools = (d?["tools"] as? [[String: Any]]) ?? []
@@ -117,7 +132,7 @@ final class NativeMenuBar: UIToolbar {
         }
     }
 
-    @objc private func pickIndicators(_ sender: UIBarButtonItem) {
+    @objc private func pickIndicators(_ sender: UIButton) {
         snapshot { snap in
             let ind = snap["indicators"] as? [String: Any]
             let popular = (ind?["popular"] as? [[String: Any]]) ?? []
