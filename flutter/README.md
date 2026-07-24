@@ -5,6 +5,9 @@ The chart page is configured with **`isNativeApp: true`**, so the SDK renders th
 canvas only** — no JS toolbars. Your Dart code owns all chrome and talks to the chart over
 a JavaScript channel.
 
+> This example ships with **`nativeChrome: "toolbar"`**, which keeps the JS **bottom** bar (interval, drawing tools, indicators, layers) — those menus are platform-specific and hard to rebuild natively, so it gives you a working mobile chart immediately. The top bar (symbol search / compare) stays hidden; that is the host's job. Set `nativeChrome: "none"` in `chart.html` once you build your own native menus.
+
+
 Ships a **self-contained mock datafeed** — synthetic BTCUSDT/ETHUSDT candles generated in
 the page, no network of any kind. Native WebViews load `chart.html` from the app bundle, a
 `file://` origin that hosted feeds reject, so a bundled feed is what lets these examples run

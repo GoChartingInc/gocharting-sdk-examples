@@ -342,12 +342,19 @@
 
 		<script>
 			// ---------------------------------------------------------------
-			// Create the chart. `isNativeApp: true` renders the mobile canvas
-			// only (no JS toolbars) and posts every appCallback to the native
-			// bridge via window.ReactNativeWebView / Flutter / Android /
-			// webkit.messageHandlers.ios.
+			// Create the chart in native host mode.
 			//
-			// `window.chart` is kept global so the native host can drive it:
+			// `isNativeApp: true` posts every appCallback to the native bridge
+			// (window.ReactNativeWebView / Flutter / Android /
+			// webkit.messageHandlers.ios) and hides the JS top bar — the host
+			// owns symbol search / compare.
+			//
+			// `nativeChrome: "toolbar"` keeps the JS bottom bar (interval,
+			// drawing tools, indicators, layers). Those menus are specific to
+			// the platform and hard to rebuild natively, so this gives you a
+			// working mobile chart out of the box. Set it to "none" (or omit)
+			// once you build your own native menus and drive the chart through
+			// `window.chart`:
 			//   window.chart.setSymbol("BYBIT:FUTURE:ETHUSDT")
 			//   window.chart.setInterval("5m")
 			//   window.chart.setTheme("dark")
@@ -362,6 +369,7 @@
 				licenseKey: "demo-550e8400-e29b-41d4-a716-446655440000",
 				theme: "dark",
 				isNativeApp: true,
+				nativeChrome: "toolbar", // keep the JS bottom bar; host owns the top
 				appCallback: function (type, message) {
 					// Optional: also observe events in JS. The SDK forwards
 					// these to the native bridge automatically.
