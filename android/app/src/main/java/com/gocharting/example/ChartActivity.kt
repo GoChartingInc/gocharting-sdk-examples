@@ -10,13 +10,15 @@ import org.json.JSONObject
 /**
  * Hosts the GoCharting SDK in a WebView.
  *
- * The chart page (assets/chart.html) runs with `isNativeApp: true`, so the SDK
- * renders the mobile canvas only — this Activity owns all chrome (toolbars,
- * sheets, order tickets) and receives chart events over the bridge.
+ * The chart page (assets/chart.html) runs with `isNativeApp: true` and
+ * `nativeChrome: "none"`, so the SDK renders the mobile canvas only and this
+ * Activity owns all chrome. The native bottom bar (NativeMenuBar.kt) drives the
+ * chart through the `gcMenu` bridge; chart events arrive over ChartBridge.
  */
 class ChartActivity : Activity() {
 
     private lateinit var webView: WebView
+    private lateinit var menuBar: NativeMenuBar
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -29,6 +31,10 @@ class ChartActivity : Activity() {
 
         // The SDK looks for a global named `Android` with postMessage(String).
         webView.addJavascriptInterface(ChartBridge(), "Android")
+
+        // Native menus — the four bottom-bar buttons call gcMenu.
+        menuBar = NativeMenuBar(this, webView)
+        menuBar.attach()
 
         // chart.html and index.umd.js live in app/src/main/assets/
         webView.loadUrl("file:///android_asset/chart.html")

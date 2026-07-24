@@ -1,11 +1,22 @@
 # Android (Kotlin) · GoCharting SDK example
 
 The GoCharting SDK running in an Android `WebView`. The chart page is configured with
-**`isNativeApp: true`**, so the SDK renders the **mobile canvas only** — no JS toolbars.
-Your Kotlin code owns all chrome (toolbars, sheets, order tickets) and talks to the chart
-over a bridge.
+**`isNativeApp: true`** and **`nativeChrome: "none"`**, so the SDK renders the **mobile
+canvas only** and this example builds its **own native menu bar** in Kotlin
+([`NativeMenuBar.kt`](./app/src/main/java/com/gocharting/example/NativeMenuBar.kt)) — the
+full native integration where the host owns all chrome.
 
-> This example ships with **`nativeChrome: "toolbar"`**, which keeps the JS **bottom** bar (interval, drawing tools, indicators, layers) — those menus are platform-specific and hard to rebuild natively, so it gives you a working mobile chart immediately. The top bar (symbol search / compare) stays hidden; that is the host's job. Set `nativeChrome: "none"` in `chart.html` once you build your own native menus.
+The native bar (Interval · Type · Draw · Indicators) drives the chart through a small
+JS bridge, **`window.gcMenu`**, defined in [`chart.html`](./app/src/main/assets/chart.html).
+Each button reads `gcMenu.snapshot()` to populate a native `AlertDialog`, and each
+selection calls `gcMenu.act(action, arg)`. That bridge is shared by every platform's
+example, so the two calls are identical in Swift / Dart / React Native — only the list UI
+differs. The bar is plain framework widgets, so this example stays dependency-free.
+
+> **Prefer no native menu code?** Set `nativeChrome: "toolbar"` in `chart.html` instead.
+> The SDK then keeps its own JS bottom bar (interval, drawings, indicators, layers) and
+> you get a working mobile chart with zero menu code. The top bar (symbol search /
+> compare) stays hidden either way — that is always the host's job.
 
 
 Ships a **self-contained mock datafeed** — synthetic BTCUSDT/ETHUSDT candles generated in

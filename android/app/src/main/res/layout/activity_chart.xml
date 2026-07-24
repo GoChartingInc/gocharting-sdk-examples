@@ -1,11 +1,68 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!--
+    Canvas on top, a native bottom bar underneath. The bar is plain framework
+    widgets (no Material dependency) so this example stays dependency-free.
+    Its four buttons drive the chart through the gcMenu bridge — see
+    NativeMenuBar.kt.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#0d0f14">
+    android:orientation="vertical"
+    android:background="#0d0f14"
+    android:fitsSystemWindows="true">
 
     <WebView
         android:id="@+id/chartWebView"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
-</FrameLayout>
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <LinearLayout
+        android:id="@+id/menuBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="#ffaa01">
+
+        <Button
+            android:id="@+id/btnInterval"
+            style="?android:attr/borderlessButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Interval"
+            android:textColor="#1a1923"
+            android:textAllCaps="false" />
+
+        <Button
+            android:id="@+id/btnType"
+            style="?android:attr/borderlessButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Type"
+            android:textColor="#1a1923"
+            android:textAllCaps="false" />
+
+        <Button
+            android:id="@+id/btnDraw"
+            style="?android:attr/borderlessButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Draw"
+            android:textColor="#1a1923"
+            android:textAllCaps="false" />
+
+        <Button
+            android:id="@+id/btnIndicators"
+            style="?android:attr/borderlessButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Indicators"
+            android:textColor="#1a1923"
+            android:textAllCaps="false" />
+    </LinearLayout>
+</LinearLayout>
