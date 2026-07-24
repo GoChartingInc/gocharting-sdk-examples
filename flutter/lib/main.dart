@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
+import 'native_menu_bar.dart';
+
 void main() => runApp(const GoChartingApp());
 
 class GoChartingApp extends StatelessWidget {
@@ -20,9 +22,10 @@ class GoChartingApp extends StatelessWidget {
 
 /// Hosts the GoCharting SDK in a webview_flutter WebView.
 ///
-/// assets/chart.html runs with `isNativeApp: true`, so the SDK renders the
-/// mobile canvas only — this widget owns all chrome and receives chart events
-/// on the `Flutter` JavaScript channel (which is what the SDK posts to).
+/// assets/chart.html runs with `isNativeApp: true` and `nativeChrome: "none"`,
+/// so the SDK renders the mobile canvas only and this widget builds its own
+/// native bottom bar (NativeMenuBar) driving the chart through the `gcMenu`
+/// bridge. Chart events arrive on the `Flutter` JavaScript channel.
 class ChartScreen extends StatefulWidget {
   const ChartScreen({super.key});
 
@@ -87,7 +90,11 @@ class _ChartScreenState extends State<ChartScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF0D0F14),
-      body: SafeArea(child: WebViewWidget(controller: _controller)),
+      body: SafeArea(
+        bottom: false,
+        child: WebViewWidget(controller: _controller),
+      ),
+      bottomNavigationBar: NativeMenuBar(controller: _controller),
     );
   }
 }
