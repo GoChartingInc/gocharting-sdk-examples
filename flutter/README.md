@@ -17,6 +17,16 @@ two calls are identical in Swift / Kotlin / React Native — only the sheet UI d
 > you get a working mobile chart with zero menu code. The top bar (symbol search /
 > compare) stays hidden either way — that is always the host's job.
 
+> **Grouped indicator picker.** The Indicators sheet groups the full catalog by
+> **`groupName`** (Momentum, Oscillators, Overlay, …) — the same buckets the built-in
+> menu shows. `gcMenu.snapshot()` exposes `indicators.catalog` from the SDK's
+> **`chart.getStudiesCatalog()`**, which returns `{ type, name, groupName }` per
+> indicator; the Dart side just buckets by `groupName` (see `_pickIndicators` in
+> [`lib/native_menu_bar.dart`](./lib/native_menu_bar.dart)). Group **by `groupName`, not
+> `category`** — `category` is null for most indicators. Needs an SDK build that exposes
+> `getStudiesCatalog()`; on older bundles the picker falls back to a short curated list
+> under "Other". The same two-line `snapshot()` addition works on every platform.
+
 
 Ships a **self-contained mock datafeed** — synthetic BTCUSDT/ETHUSDT candles generated in
 the page, no network of any kind. Native WebViews load `chart.html` from the app bundle, a

@@ -46,6 +46,8 @@ class NativeMenuBar extends StatelessWidget {
     return showModalBottomSheet<void>(
       context: context,
       backgroundColor: _surface,
+      // A grouped catalog can be long, so let the sheet grow and scroll.
+      isScrollControlled: true,
       builder: (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -59,17 +61,38 @@ class NativeMenuBar extends StatelessWidget {
                         color: Colors.white70, fontWeight: FontWeight.w600, fontSize: 13)),
               ),
             ),
-            for (final it in items)
-              ListTile(
-                title: Text(it.label, style: const TextStyle(color: Colors.white)),
-                trailing: it.active
-                    ? const Icon(Icons.check, color: _brand, size: 18)
-                    : null,
-                onTap: () {
-                  Navigator.pop(ctx);
-                  it.onTap();
-                },
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  for (final it in items)
+                    if (it.isHeader)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(it.label,
+                              style: const TextStyle(
+                                  color: _brand,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 12,
+                                  letterSpacing: 0.5)),
+                        ),
+                      )
+                    else
+                      ListTile(
+                        title: Text(it.label, style: const TextStyle(color: Colors.white)),
+                        trailing: it.active
+                            ? const Icon(Icons.check, color: _brand, size: 18)
+                            : null,
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          it.onTap!();
+                        },
+                      ),
+                ],
               ),
+            ),
           ],
         ),
       ),
@@ -116,18 +139,31 @@ class NativeMenuBar extends StatelessWidget {
   Future<void> _pickIndicators(BuildContext context) async {
     final snap = await _snapshot();
     final ind = snap['indicators'] as Map<String, dynamic>? ?? {};
-    final popular = (ind['popular'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
+    final catalog = (ind['catalog'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
     final active = (ind['active'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
     final activeTypes = active.map((s) => s['type'] as String).toSet();
+
+    // Group by `groupName` — the field getStudiesCatalog() attaches. This is
+    // the whole point: the SDK owns the grouping, the host just buckets by it.
+    // Entries fall under "Other" only on older bundles that predate the method.
+    final groups = <String, List<Map<String, dynamic>>>{};
+    for (final c in catalog) {
+      (groups[(c['groupName'] as String?) ?? 'Other'] ??= []).add(c);
+    }
+    final groupNames = groups.keys.toList()..sort();
+
     if (!context.mounted) return;
     await _sheet(context, 'Indicators', [
-      // active first (tap to remove), then popular not-yet-added (tap to add)
+      // Active first (tap to remove), then each group with its indicators.
       for (final s in active)
         _MenuItem('Remove ${s['type']}',
             active: true, onTap: () => _act('removeStudy', s['id'] as String)),
-      for (final p in popular)
-        if (!activeTypes.contains(p['code'] as String))
-          _MenuItem('Add ${p['label']}', onTap: () => _act('addStudy', p['code'] as String)),
+      for (final g in groupNames) ...[
+        _MenuItem.header(g),
+        for (final c in groups[g]!)
+          if (!activeTypes.contains(c['type'] as String))
+            _MenuItem('Add ${c['name']}', onTap: () => _act('addStudy', c['type'] as String)),
+      ],
     ]);
   }
 
@@ -158,8 +194,17 @@ class NativeMenuBar extends StatelessWidget {
 }
 
 class _MenuItem {
-  _MenuItem(this.label, {this.active = false, required this.onTap});
+  _MenuItem(this.label, {this.active = false, required this.onTap})
+      : isHeader = false;
+
+  /// A non-tappable section header (e.g. a `groupName` label).
+  _MenuItem.header(this.label)
+      : isHeader = true,
+        active = false,
+        onTap = null;
+
   final String label;
   final bool active;
-  final VoidCallback onTap;
+  final bool isHeader;
+  final VoidCallback? onTap;
 }

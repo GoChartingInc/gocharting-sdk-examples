@@ -450,12 +450,26 @@
 					} catch (e) { return []; }
 				}
 
+				// Full indicator catalog for a *grouped* picker. getStudiesCatalog()
+				// returns { type, name, groupName } per indicator, so the host can
+				// bucket by groupName — the same groups the built-in menu shows
+				// (Momentum, Oscillators, Overlay, …). Needs an SDK build that
+				// exposes getStudiesCatalog(); older bundles fall back to the
+				// curated INDICATORS list with no groups.
+				function catalog() {
+					try {
+						var list = call("getStudiesCatalog");
+						if (Array.isArray(list) && list.length) return list;
+					} catch (e) { /* older bundle: no getStudiesCatalog */ }
+					return INDICATORS.map(function (i) { return { type: i.code, name: i.label, groupName: null }; });
+				}
+
 				var self = {
 					snapshot: function () {
 						return {
 							interval: { current: currentInterval(), options: (function () { try { return call("getIntervals"); } catch (e) { return []; } })() },
 							chartType: { current: currentType(), options: CHART_TYPES },
-							indicators: { popular: INDICATORS, active: activeStudies() },
+							indicators: { popular: INDICATORS, catalog: catalog(), active: activeStudies() },
 							drawings: { tools: DRAWINGS, current: (function () { try { return call("selectedLineTool"); } catch (e) { return null; } })() }
 						};
 					},
