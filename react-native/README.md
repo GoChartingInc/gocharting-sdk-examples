@@ -18,6 +18,15 @@ Dart examples — only the sheet UI (a `Modal`) differs.
 > The SDK then keeps its own JS bottom bar (interval, drawings, indicators, layers) and
 > you get a working mobile chart with zero menu code. The top bar (symbol search /
 > compare) stays hidden either way — that is always the host's job.
+
+> **Grouped indicator picker.** The Indicators sheet groups the full catalog by
+> **`groupName`** (Momentum, Oscillators, Overlay, …) — the same buckets the built-in
+> menu shows. `gcMenu.snapshot()` exposes `indicators.catalog` from the SDK's
+> **`chart.getStudiesCatalog()`** (`{ type, name, groupName }` per indicator); `pickIndicators`
+> in [`NativeMenuBar.tsx`](./NativeMenuBar.tsx) buckets by `groupName` with section headers.
+> Group **by `groupName`, not `category`** — `category` is null for most indicators. Needs an
+> SDK build that exposes `getStudiesCatalog()`; older bundles fall back to a short curated
+> list under "Other".
 >
 > **Loading the SDK bundle in debug.** `require("./assets/chart.html")` bundles the page
 > as a native asset, and in a **release** build its sibling `index.umd.js` loads from the

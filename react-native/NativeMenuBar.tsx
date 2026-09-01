@@ -26,11 +26,17 @@ type Snapshot = {
 	drawings?: { tools?: { code: string; label: string }[] };
 	indicators?: {
 		popular?: { code: string; label: string }[];
+		catalog?: { type: string; name: string; groupName: string | null }[];
 		active?: { id: string; type: string }[];
 	};
 };
 
-type SheetItem = { label: string; active?: boolean; onPress: () => void };
+type SheetItem = {
+	label: string;
+	active?: boolean;
+	header?: boolean;
+	onPress?: () => void;
+};
 
 export function NativeMenuBar(props: {
 	requestSnapshot: () => Promise<Snapshot>;
@@ -81,21 +87,32 @@ export function NativeMenuBar(props: {
 	const pickIndicators = async () => {
 		const s = await props.requestSnapshot();
 		const active = s.indicators?.active ?? [];
-		const popular = s.indicators?.popular ?? [];
+		const catalog = s.indicators?.catalog ?? [];
 		const activeTypes = new Set(active.map((a) => a.type));
+
+		// Group by `groupName` — the field getStudiesCatalog() attaches. The SDK
+		// owns the grouping; the host just buckets by it. Entries fall under
+		// "Other" only on older bundles that predate the method.
+		const groups: Record<string, typeof catalog> = {};
+		for (const c of catalog) (groups[c.groupName ?? "Other"] ??= []).push(c);
+		const groupNames = Object.keys(groups).sort();
+
 		open("Indicators", [
-			// active first (tap to remove), then popular not-yet-added (tap to add)
+			// Active first (tap to remove), then each group with its indicators.
 			...active.map((a) => ({
 				label: `Remove ${a.type}`,
 				active: true,
 				onPress: () => props.act("removeStudy", a.id),
 			})),
-			...popular
-				.filter((p) => !activeTypes.has(p.code))
-				.map((p) => ({
-					label: `Add ${p.label}`,
-					onPress: () => props.act("addStudy", p.code),
-				})),
+			...groupNames.flatMap((g): SheetItem[] => [
+				{ label: g, header: true },
+				...groups[g]
+					.filter((c) => !activeTypes.has(c.type))
+					.map((c) => ({
+						label: `Add ${c.name}`,
+						onPress: () => props.act("addStudy", c.type),
+					})),
+			]),
 		]);
 	};
 
@@ -122,19 +139,25 @@ export function NativeMenuBar(props: {
 					<Pressable style={styles.sheet}>
 						<Text style={styles.sheetTitle}>{sheet?.title}</Text>
 						<ScrollView>
-							{sheet?.items.map((it, i) => (
-								<Pressable
-									key={i}
-									style={styles.row}
-									onPress={() => {
-										close();
-										it.onPress();
-									}}
-								>
-									<Text style={styles.rowText}>{it.label}</Text>
-									{it.active ? <Text style={styles.check}>✓</Text> : null}
-								</Pressable>
-							))}
+							{sheet?.items.map((it, i) =>
+								it.header ? (
+									<Text key={i} style={styles.groupHeader}>
+										{it.label}
+									</Text>
+								) : (
+									<Pressable
+										key={i}
+										style={styles.row}
+										onPress={() => {
+											close();
+											it.onPress?.();
+										}}
+									>
+										<Text style={styles.rowText}>{it.label}</Text>
+										{it.active ? <Text style={styles.check}>✓</Text> : null}
+									</Pressable>
+								),
+							)}
 						</ScrollView>
 					</Pressable>
 				</Pressable>
@@ -165,6 +188,15 @@ const styles = StyleSheet.create({
 		fontSize: 13,
 		paddingHorizontal: 20,
 		paddingVertical: 12,
+	},
+	groupHeader: {
+		color: BRAND,
+		fontWeight: "700",
+		fontSize: 12,
+		letterSpacing: 0.5,
+		paddingHorizontal: 20,
+		paddingTop: 12,
+		paddingBottom: 4,
 	},
 	row: {
 		flexDirection: "row",

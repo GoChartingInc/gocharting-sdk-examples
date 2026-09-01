@@ -18,6 +18,14 @@ differs. The bar is plain framework widgets, so this example stays dependency-fr
 > you get a working mobile chart with zero menu code. The top bar (symbol search /
 > compare) stays hidden either way — that is always the host's job.
 
+> **Grouped indicator picker.** `gcMenu.snapshot()` exposes `indicators.catalog` from the
+> SDK's **`chart.getStudiesCatalog()`** (`{ type, name, groupName }` per indicator).
+> `pickIndicators` in [`NativeMenuBar.kt`](./app/src/main/java/com/gocharting/example/NativeMenuBar.kt)
+> buckets by **`groupName`** (Momentum, Oscillators, Overlay, …) and drills into a second
+> dialog per group — a list dialog can't render headers. Group **by `groupName`, not
+> `category`** — `category` is null for most indicators. Needs an SDK build that exposes
+> `getStudiesCatalog()`; older bundles fall back to a short curated list under "Other".
+
 
 Ships a **self-contained mock datafeed** — synthetic BTCUSDT/ETHUSDT candles generated in
 the page, no network of any kind. Native WebViews load `chart.html` from the app bundle, a

@@ -135,19 +135,36 @@ final class NativeMenuBar: UIView {
     @objc private func pickIndicators(_ sender: UIButton) {
         snapshot { snap in
             let ind = snap["indicators"] as? [String: Any]
-            let popular = (ind?["popular"] as? [[String: Any]]) ?? []
+            let catalog = (ind?["catalog"] as? [[String: Any]]) ?? []
             let active = (ind?["active"] as? [[String: Any]]) ?? []
-            // active studies first (tap to remove), then popular (tap to add)
-            var options: [(String, () -> Void)] = active.compactMap { s in
+            let activeTypes = Set(active.compactMap { $0["type"] as? String })
+
+            // Group by `groupName` — the field getStudiesCatalog() attaches. The
+            // SDK owns the grouping; the host just buckets by it. Entries fall
+            // under "Other" only on older bundles that predate the method.
+            var groups: [String: [[String: Any]]] = [:]
+            for c in catalog {
+                groups[(c["groupName"] as? String) ?? "Other", default: []].append(c)
+            }
+
+            // Active studies first (tap to remove), then one row per group that
+            // opens a second sheet of that group's indicators (action sheets
+            // can't render headers, so drill in — same catalog, grouped).
+            var options: [(label: String, handler: () -> Void)] = active.compactMap { s in
                 guard let id = s["id"] as? String, let type = s["type"] as? String else { return nil }
                 return ("Remove \(type)", { self.act("removeStudy", id) })
             }
-            for p in popular {
-                guard let code = p["code"] as? String, let label = p["label"] as? String else { continue }
-                let isActive = active.contains { ($0["type"] as? String) == code }
-                if !isActive { options.append(("Add \(label)", { self.act("addStudy", code) })) }
+            for g in groups.keys.sorted() {
+                options.append(("\(g) ▸", {
+                    let items: [(label: String, handler: () -> Void)] = (groups[g] ?? []).compactMap { c in
+                        guard let type = c["type"] as? String, let name = c["name"] as? String,
+                              !activeTypes.contains(type) else { return nil }
+                        return ("Add \(name)", { self.act("addStudy", type) })
+                    }
+                    self.sheet(g, items, source: sender)
+                }))
             }
-            self.sheet("Indicators", options.map { (label: $0.0, handler: $0.1) }, source: sender)
+            self.sheet("Indicators", options, source: sender)
         }
     }
 }

@@ -89,11 +89,24 @@ class NativeMenuBar(
 
     private fun pickIndicators() = snapshot { snap ->
         val ind = snap.optJSONObject("indicators") ?: return@snapshot
-        val popular = ind.optJSONArray("popular") ?: JSONArray()
+        val catalog = ind.optJSONArray("catalog") ?: JSONArray()
         val active = ind.optJSONArray("active") ?: JSONArray()
-        val activeTypes = (0 until active.length()).map { active.getJSONObject(it).getString("type") }
+        val activeTypes =
+            (0 until active.length()).map { active.getJSONObject(it).getString("type") }.toSet()
 
-        // active studies first (tap to remove), then popular not-yet-added (tap to add)
+        // Group by `groupName` — the field getStudiesCatalog() attaches. The SDK
+        // owns the grouping; the host just buckets by it. Entries fall under
+        // "Other" only on older bundles that predate the method.
+        val groups = sortedMapOf<String, MutableList<JSONObject>>()
+        for (j in 0 until catalog.length()) {
+            val c = catalog.getJSONObject(j)
+            val g = if (c.isNull("groupName")) "Other" else c.optString("groupName", "Other")
+            groups.getOrPut(g) { mutableListOf() }.add(c)
+        }
+
+        // Active studies first (tap to remove), then one row per group that
+        // opens a second dialog of that group's indicators (a list dialog can't
+        // render headers, so drill in — same catalog, grouped).
         val labels = mutableListOf<String>()
         val actions = mutableListOf<() -> Unit>()
         for (j in 0 until active.length()) {
@@ -102,13 +115,22 @@ class NativeMenuBar(
             val id = s.getString("id")
             actions.add { act("removeStudy", id) }
         }
-        for (j in 0 until popular.length()) {
-            val p = popular.getJSONObject(j)
-            val code = p.getString("code")
-            if (activeTypes.contains(code)) continue
-            labels.add("Add ${p.getString("label")}")
-            actions.add { act("addStudy", code) }
+        for ((g, entries) in groups) {
+            labels.add("$g ▸")
+            actions.add { showGroup(g, entries, activeTypes) }
         }
         sheet("Indicators", labels) { i -> actions[i]() }
+    }
+
+    private fun showGroup(group: String, entries: List<JSONObject>, activeTypes: Set<String>) {
+        val labels = mutableListOf<String>()
+        val actions = mutableListOf<() -> Unit>()
+        for (c in entries) {
+            val type = c.getString("type")
+            if (activeTypes.contains(type)) continue
+            labels.add("Add ${c.getString("name")}")
+            actions.add { act("addStudy", type) }
+        }
+        sheet(group, labels) { i -> actions[i]() }
     }
 }
